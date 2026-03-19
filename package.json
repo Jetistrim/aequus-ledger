@@ -1,0 +1,19 @@
+{
+  "name": "conciliacao-financeira",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "backend": "npm run dev --prefix backend",
+    "frontend": "npm run dev --prefix frontend",
+    "docker:up": "node scripts/docker-up.mjs dev",
+    "docker:up:prod": "node scripts/docker-up.mjs prod",
+    "docker:down": "docker compose --profile dev --profile prod down --remove-orphans",
+    "docker:down:volumes": "docker compose down -v --remove-orphans",
+    "docker:logs": "docker compose --profile dev --profile prod logs -f",
+    "docker:healthcheck": "node scripts/healthcheck.mjs",
+    "security:scan": "node scripts/security-scan.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

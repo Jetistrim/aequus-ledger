@@ -1,0 +1,184 @@
+services:
+  db:
+    image: postgres:16
+    container_name: conciliacao-db
+    restart: unless-stopped
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-conciliacao_financeira}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-conciliacao_financeira}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend-init:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: migrate
+    container_name: conciliacao-backend-init
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    tmpfs:
+      - /tmp
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-conciliacao_financeira}
+    restart: "no"
+
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: conciliacao-backend-dev
+    restart: unless-stopped
+    init: true
+    profiles: ["dev"]
+    depends_on:
+      backend-init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    tmpfs:
+      - /tmp
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-conciliacao_financeira}
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+      MAX_FILE_SIZE_MB: 10
+      EXPORTS_DIR: ./exports
+      UPLOADS_DIR: ./uploads
+    ports:
+      - "3001:3001"
+    volumes:
+      - backend_exports:/app/exports
+      - backend_uploads:/app/uploads
+    networks:
+      default:
+        aliases:
+          - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  backend-prod:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: conciliacao-backend-prod
+    restart: unless-stopped
+    init: true
+    profiles: ["prod"]
+    depends_on:
+      backend-init:
+        condition: service_completed_successfully
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    tmpfs:
+      - /tmp
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-conciliacao_financeira}
+      PORT: 3001
+      CORS_ORIGIN: http://localhost:5173
+      MAX_FILE_SIZE_MB: 10
+      EXPORTS_DIR: ./exports
+      UPLOADS_DIR: ./uploads
+    volumes:
+      - backend_exports:/app/exports
+      - backend_uploads:/app/uploads
+    networks:
+      default:
+        aliases:
+          - backend
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  frontend-dev:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: conciliacao-frontend-dev
+    restart: unless-stopped
+    init: true
+    profiles: ["dev"]
+    depends_on:
+      backend-dev:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    tmpfs:
+      - /tmp
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:3001
+    ports:
+      - "5173:5173"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  frontend-prod:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: conciliacao-frontend-prod
+    restart: unless-stopped
+    init: true
+    profiles: ["prod"]
+    depends_on:
+      backend-prod:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - ./frontend/certs:/certs:ro
+    ports:
+      - "5173:8443"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://127.0.0.1:8443/ >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+volumes:
+  postgres_data:
+  backend_exports:
+  backend_uploads:

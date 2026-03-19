@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+uploads/
+exports/
+frontend/certs/*.crt
+frontend/certs/*.key

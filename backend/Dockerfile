@@ -1,6 +1,9 @@
 FROM node:25-alpine AS base
 
-RUN apk add --no-cache openssl ca-certificates
+# Atualiza zlib para corrigir CVE-2026-22184 (buffer overflow no utilitário untgz).
+# A imagem base node:25-alpine usa zlib 1.3.1-r2; a versao corrigida e 1.3.2-r0.
+RUN apk upgrade --no-cache zlib && \
+    apk add --no-cache openssl ca-certificates
 
 WORKDIR /app
 

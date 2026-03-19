@@ -31,6 +31,10 @@ ENV NODE_ENV=production
 COPY --from=prune /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 
+# Runtime nao precisa de npm/npx/corepack; remover reduz superficie de ataque.
+RUN rm -f /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack \
+	&& rm -rf /usr/local/lib/node_modules/npm /opt/yarn-v1.22.22
+
 RUN mkdir -p /app/uploads /app/exports /tmp \
 	&& chown -R node:node /app /tmp
 

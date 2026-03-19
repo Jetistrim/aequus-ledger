@@ -1,0 +1,5 @@
+echo "► [pre-push] Build completo do backend..."
+npm run build --prefix backend
+
+echo "► [pre-push] Build completo do frontend..."
+npm run build --prefix frontend

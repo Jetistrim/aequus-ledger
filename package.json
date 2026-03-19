@@ -11,9 +11,12 @@
     "docker:down:volumes": "docker compose down -v --remove-orphans",
     "docker:logs": "docker compose --profile dev --profile prod logs -f",
     "docker:healthcheck": "node scripts/healthcheck.mjs",
-    "security:scan": "node scripts/security-scan.mjs"
+    "security:scan": "node scripts/security-scan.mjs",
+    "test": "npm run test --prefix backend && npm run test --prefix frontend",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "concurrently": "^9.2.1",
+    "husky": "^9.1.7"
   }
 }

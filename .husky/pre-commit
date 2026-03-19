@@ -1,0 +1,5 @@
+echo "► [pre-commit] Verificando tipos TypeScript — backend..."
+npm run test --prefix backend
+
+echo "► [pre-commit] Verificando tipos TypeScript — frontend..."
+npm run test --prefix frontend

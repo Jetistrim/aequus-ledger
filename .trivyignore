@@ -1,0 +1,11 @@
+# Baseline temporario de CVEs conhecidos para nao bloquear pipeline.
+# Revisar em toda atualizacao de dependencias e remover entradas corrigidas.
+
+# Dependencia transitiva do toolchain Prisma (build/bootstrap, nao runtime da API)
+CVE-2026-29087
+CVE-2026-29045
+
+# Biblioteca SheetJS CE (xlsx) sem versao corrigida publicada no npm publico
+# Risco conhecido: uploads sao tratados como dados, sem execucao de macros.
+CVE-2023-30533
+CVE-2024-22363

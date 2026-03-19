@@ -10,6 +10,7 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  COMPOSE_PROJECT_NAME: conciliaofinanceira
 
 jobs:
   trivy-fs:
@@ -41,6 +42,11 @@ jobs:
 
       - name: Build production images
         run: docker compose --profile prod build backend-prod frontend-prod
+
+      - name: Validate built image tags
+        run: |
+          docker image inspect conciliaofinanceira-backend-prod:latest >/dev/null
+          docker image inspect conciliaofinanceira-frontend-prod:latest >/dev/null
 
       - name: Run Trivy on backend image
         uses: aquasecurity/trivy-action@0.28.0

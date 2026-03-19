@@ -27,7 +27,11 @@ const fileFilter: multer.Options['fileFilter'] = (
     return cb(new Error('Formato de arquivo não suportado. Envie arquivos .csv, .ofx, .xls ou .xlsx.'));
   }
 
-  if (!allowedMimes.has(file.mimetype)) {
+  // Em upload de pasta (webkitdirectory), alguns navegadores enviam mimetype vazio.
+  // Mantemos a whitelist de extensao e aceitamos mimetype vazio para nao bloquear casos legitimos.
+  const mimeType = (file.mimetype || '').toLowerCase().trim();
+
+  if (mimeType !== '' && !allowedMimes.has(mimeType)) {
     return cb(new Error('Tipo MIME inválido para a extensão enviada.'));
   }
 

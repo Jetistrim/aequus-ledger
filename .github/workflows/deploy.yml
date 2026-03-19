@@ -1,0 +1,57 @@
+name: Deploy (Docker Compose)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  COMPOSE_PROJECT_NAME: conciliaofinanceira
+
+jobs:
+  compose-build-and-publish:
+    name: Compose Build and Publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Verify Docker Compose availability
+        run: |
+          docker compose version
+          docker compose config >/dev/null
+
+      - name: Build production images with Docker Compose
+        run: docker compose --profile prod build backend-prod frontend-prod
+
+      - name: Tag and push backend image to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        run: |
+          docker tag conciliaofinanceira-backend-prod:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-backend:latest
+          docker tag conciliaofinanceira-backend-prod:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-backend:sha-${{ github.sha }}
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-backend:latest
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-backend:sha-${{ github.sha }}
+
+      - name: Tag and push frontend image to Docker Hub
+        if: ${{ secrets.DOCKERHUB_USERNAME != '' && secrets.DOCKERHUB_TOKEN != '' }}
+        run: |
+          docker tag conciliaofinanceira-frontend-prod:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-frontend:latest
+          docker tag conciliaofinanceira-frontend-prod:latest docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-frontend:sha-${{ github.sha }}
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-frontend:latest
+          docker push docker.io/${{ secrets.DOCKERHUB_USERNAME }}/aequus-ledger-frontend:sha-${{ github.sha }}

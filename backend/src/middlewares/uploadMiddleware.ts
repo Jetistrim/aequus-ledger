@@ -5,15 +5,7 @@ import { Request } from 'express';
 const storage = multer.memoryStorage();
 const maxFileSizeMb = Number(process.env.MAX_FILE_SIZE_MB || 10);
 
-const mimeByExtension: Record<string, Set<string>> = {
-  '.csv': new Set(['text/csv', 'application/vnd.ms-excel', 'text/plain']),
-  '.ofx': new Set(['application/x-ofx', 'application/ofx', 'text/ofx', 'text/plain']),
-  '.xls': new Set(['application/vnd.ms-excel', 'application/octet-stream']),
-  '.xlsx': new Set([
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'application/octet-stream',
-  ]),
-};
+const allowedExtensions = new Set(['.csv', '.ofx', '.xls', '.xlsx']);
 
 const fileFilter: multer.Options['fileFilter'] = (
   _req: Request,
@@ -21,20 +13,15 @@ const fileFilter: multer.Options['fileFilter'] = (
   cb: multer.FileFilterCallback
 ) => {
   const ext = path.extname(file.originalname).toLowerCase();
-  const allowedMimes = mimeByExtension[ext];
 
-  if (!allowedMimes) {
+  if (!allowedExtensions.has(ext)) {
     return cb(new Error('Formato de arquivo não suportado. Envie arquivos .csv, .ofx, .xls ou .xlsx.'));
   }
 
-  // Em upload de pasta (webkitdirectory), alguns navegadores enviam mimetype vazio.
-  // Mantemos a whitelist de extensao e aceitamos mimetype vazio para nao bloquear casos legitimos.
-  const mimeType = (file.mimetype || '').toLowerCase().trim();
-
-  if (mimeType !== '' && !allowedMimes.has(mimeType)) {
-    return cb(new Error('Tipo MIME inválido para a extensão enviada.'));
-  }
-
+  // A extensão é a validação primária. O MIME type de navegadores é pouco confiável,
+  // especialmente em uploads de pasta (webkitdirectory), onde valores como
+  // application/octet-stream, text/x-csv ou vazios são comuns.
+  // Como nenhum arquivo é executado (apenas parseado como dado), a extensão é suficiente.
   cb(null, true);
 };
 

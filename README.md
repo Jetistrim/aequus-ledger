@@ -134,17 +134,23 @@ Scan automatizado no GitHub Actions:
 
 ## Execução local sem Docker
 
-Necessário: Node.js 20+ e PostgreSQL 16+ rodando localmente.
+Necessário: Node.js 20+.
+
+Observação: no modo local de desenvolvimento (`npm run dev`), o backend usa SQLite volátil (`backend/prisma/dev.db`) e reseta os dados a cada inicialização.
 
 ### Backend
 
 ```bash
 cd backend
 npm install
-# Criar backend/.env com DATABASE_URL apontando para seu PostgreSQL local
-npm run db:migrate   # prisma migrate deploy
-npm run seed         # popula regras iniciais
-npm run dev          # nodemon + ts-node
+npm run dev          # reseta SQLite, executa seed e sobe servidor
+```
+
+Para usar PostgreSQL local manualmente no backend, crie `backend/.env` com `DATABASE_URL` e rode:
+
+```bash
+cd backend
+npm run dev:postgres
 ```
 
 ### Frontend

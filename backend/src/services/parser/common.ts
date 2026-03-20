@@ -9,8 +9,23 @@ export function parseValor(valorOriginal: unknown): number | null {
   const texto = String(valorOriginal ?? '').trim();
   if (!texto) return null;
 
-  const normalizado = texto
+  let normalizado = texto
+    .replace(/\u00A0/g, ' ')
     .replace(/\s/g, '')
+    // Remove símbolos e rótulos monetários comuns, preservando dígitos e separadores.
+    .replace(/[^\d,.-]/g, '');
+
+  if (!normalizado || !/[\d]/.test(normalizado)) {
+    return null;
+  }
+
+  // Alguns extratos exportam débito como "123,45-".
+  if (normalizado.endsWith('-')) {
+    normalizado = `-${normalizado.slice(0, -1)}`;
+  }
+
+  // Remove separador de milhar (.) quando antecede grupo de 3 dígitos.
+  normalizado = normalizado
     .replace(/\.(?=\d{3}(\D|$))/g, '')
     .replace(',', '.');
 

@@ -13,6 +13,10 @@ export interface Transacao {
   hashTransacao: string;
   observacao?: string;
   arquivoOrigem?: string;
+  // Campos computados dinamicamente pela API (não persistidos)
+  pixAutoClassificado?: boolean;
+  sugestaoClassificacao?: 'PESSOAL' | 'EMPRESA' | null;
+  labelHeuristica?: string | null;
 }
 
 export interface Regra {

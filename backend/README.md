@@ -29,12 +29,15 @@ MAX_TOTAL_UPLOAD_SIZE_MB=100
 ## Scripts
 
 ```bash
-npm run dev          # servidor em modo watch (nodemon + ts-node)
+npm run dev          # modo volátil: reseta SQLite local, executa seed e sobe o servidor
+npm run dev:postgres # servidor em modo watch usando DATABASE_URL (PostgreSQL)
 npm run build        # compila TypeScript para dist/
 npm run start        # executa dist/index.js (produção)
 npm run db:migrate   # aplica migrações pendentes (prisma migrate deploy)
 npm run seed         # popula regras de classificação iniciais
 ```
+
+No modo volátil (`npm run dev`), o backend usa `file:./prisma/dev.db` e faz reset do banco a cada inicialização. Isso garante ambiente limpo para depuração sem persistir dados entre execuções.
 
 O script `start:docker` é usado exclusivamente pelo container Docker — ele roda migrate + seed + servidor em sequência.
 

@@ -30,6 +30,7 @@ model Regra {
   subCategoria  String?   @map("sub_categoria")
   prioridade    Int       @default(0)
 
+  @@unique([palavraChave, categoria, prioridade], map: "regras_palavra_chave_categoria_prioridade_key")
   @@map("regras")
 }
 

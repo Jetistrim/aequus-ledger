@@ -4,22 +4,9 @@ import { prisma } from '../lib/prisma';
 import { parseFile, TransacaoRaw } from '../services/parserService';
 import { gerarHash } from '../services/hashService';
 import { classificar } from '../services/classificadorService';
+import { enrichTransacoes } from '../utils/responseHelpers';
 
 const DB_WRITE_BATCH_SIZE = 40;
-const MAX_TOTAL_UPLOAD_SIZE_MB = Number(process.env.MAX_TOTAL_UPLOAD_SIZE_MB || 100);
-const MAX_TOTAL_UPLOAD_SIZE_BYTES = MAX_TOTAL_UPLOAD_SIZE_MB * 1024 * 1024;
-
-function validarTamanhoTotalArquivos(arquivos: Express.Multer.File[]) {
-  const totalBytes = arquivos.reduce((soma, arquivo) => soma + arquivo.size, 0);
-
-  if (totalBytes > MAX_TOTAL_UPLOAD_SIZE_BYTES) {
-    const erro = new Error(
-      `Os arquivos compatíveis enviados ultrapassam o limite total de ${MAX_TOTAL_UPLOAD_SIZE_MB}MB.`
-    ) as Error & { code?: string };
-    erro.code = 'LIMIT_TOTAL_FILE_SIZE';
-    throw erro;
-  }
-}
 
 async function criarTransacoesEmLote(
   transacoesRaw: TransacaoRaw[],
@@ -36,7 +23,12 @@ async function criarTransacoesEmLote(
       lote.map(async (raw) => {
         const hash = gerarHash(raw.dataTransacao, raw.valor, raw.descricao);
         const tipo: Tipo = raw.valor >= 0 ? 'ENTRADA' : 'SAIDA';
-        const { classificacao, categoriaGenerica } = classificar(raw.descricao, regras);
+        const { classificacao, categoriaGenerica } = classificar(
+          raw.descricao,
+          regras,
+          raw.dataTransacao,
+          Math.abs(raw.valor),
+        );
 
         return prisma.transacao.create({
           data: {
@@ -82,8 +74,6 @@ export async function uploadArquivo(req: Request, res: Response, next: NextFunct
       return;
     }
 
-    validarTamanhoTotalArquivos(arquivos);
-
     const lotePorArquivo = await Promise.all(
       arquivos.map(async (arquivo) => ({ transacoes: await parseFile(arquivo) }))
     );
@@ -106,7 +96,7 @@ export async function uploadArquivo(req: Request, res: Response, next: NextFunct
       importadas,
       duplicadas,
       indefinidas,
-      transacoes: transacoesSalvas,
+      transacoes: enrichTransacoes(transacoesSalvas),
     });
   } catch (err) {
     next(err);

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Classificacao } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { enrichTransacoes } from '../utils/responseHelpers';
 
 export async function listarTransacoes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -15,7 +16,7 @@ export async function listarTransacoes(req: Request, res: Response, next: NextFu
       orderBy: { dataTransacao: 'desc' },
     });
 
-    res.json(transacoes);
+    res.json(enrichTransacoes(transacoes));
   } catch (err) {
     next(err);
   }

@@ -4,8 +4,6 @@ import { parsearPlanilha } from './parser/spreadsheetParser';
 import type { TransacaoRaw } from './parser/types';
 export type { TransacaoRaw } from './parser/types';
 
-export { parsearCSV, parsearOFX, parsearPlanilha };
-
 export async function parseFile(file: Express.Multer.File): Promise<TransacaoRaw[]> {
   const ext = file.originalname.split('.').pop()?.toLowerCase();
 

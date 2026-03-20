@@ -1,10 +1,4 @@
-import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
-import { PrismaPg } from '@prisma/adapter-pg';
-
-const connectionString = process.env['DATABASE_URL']!;
-const adapter = new PrismaPg({ connectionString });
-const prisma = new PrismaClient({ adapter } as ConstructorParameters<typeof PrismaClient>[0]);
+import { prisma } from '../src/lib/prisma';
 
 async function main() {
   const regras = [
@@ -41,6 +35,12 @@ async function main() {
     { palavraChave: 'PORTO SEGURO,SUL AMERICA,BRADESCO SEGUROS,SEGURO AUTO,SEGURADORA', categoria: 'PESSOAL' as const, subCategoria: 'Seguro', prioridade: 2 },
     // Saques e retiradas (comum para gastos pessoais)
     { palavraChave: 'RETIRADA,SAQUE ATM,SAQUE CAIXA,SAQUE DINHEIRO,SAQUE', categoria: 'PESSOAL' as const, subCategoria: 'Saque', prioridade: 2 },
+    // Retirada de sócio/proprietário (cenário recorrente em PIX para PF)
+    { palavraChave: 'RETIRADA SOCIO,RETIRADA PROPRIETARIO,SALARIO SOCIO', categoria: 'PESSOAL' as const, subCategoria: 'Retirada', prioridade: 1 },
+    // Transferências para familiares
+    { palavraChave: 'FAMILIA,MAE,PAI,FILHO,ESPOSA,MARIDO,NAMORADA,IRMAO', categoria: 'PESSOAL' as const, subCategoria: 'Transferência Pessoal', prioridade: 2 },
+    // Recargas e telefonia pessoal
+    { palavraChave: 'RECARGA CELULAR,RECARGA,VIVO,TIM,CLARO,OI', categoria: 'PESSOAL' as const, subCategoria: 'Telefonia', prioridade: 2 },
 
     // ── EMPRESA — Prioridade 1 (termos específicos e confiáveis) ────────────────
 
@@ -58,6 +58,10 @@ async function main() {
     { palavraChave: 'LOCACAO,ALUGUEL IMOVEL,ALUGUEL ESPACO,IMOBILIARIA,ALUGUEL,CONDOMINIO,SINDICO', categoria: 'EMPRESA' as const, subCategoria: 'Aluguel', prioridade: 1 },
     // Fornecedores e NF
     { palavraChave: 'FORNECEDOR,CNPJ,NOTA FISCAL,NF-E,SERVICO PRESTADO', categoria: 'EMPRESA' as const, subCategoria: 'Fornecedor', prioridade: 1 },
+    // Fornecedores e prestadores (abreviações jurídicas e operacionais)
+    { palavraChave: 'FORN,EIRELI,PRESTADOR SERVICO,FREELANCER', categoria: 'EMPRESA' as const, subCategoria: 'Prestadores', prioridade: 2 },
+    // Boleto no fluxo operacional
+    { palavraChave: 'BOLETO,BOLETO PIX,PAG BOLETO,PAGAMENTO BOLETO', categoria: 'EMPRESA' as const, subCategoria: 'Pagamento de Boleto', prioridade: 1 },
 
     // ── EMPRESA — Prioridade 2 ───────────────────────────────────────────────────
 
@@ -79,29 +83,22 @@ async function main() {
     // ── EMPRESA — Prioridade 3 (catch-all, força revisão manual se errar) ───────
 
     // Receitas da conta PJ
-    { palavraChave: 'RECEBIMENTO CLIENTE,PIX RECEBIDO,TRANSFERENCIA RECEBIDA,DEPOSITO', categoria: 'EMPRESA' as const, subCategoria: 'Receita', prioridade: 3 },
+    { palavraChave: 'RECEBIMENTO CLIENTE,CLIENTE,VENDA,RECEBIMENTO,FATURA,DEPOSITO', categoria: 'EMPRESA' as const, subCategoria: 'Receita', prioridade: 3 },
   ];
 
   for (const regra of regras) {
-    const existente = await prisma.regra.findFirst({
+    await prisma.regra.upsert({
       where: {
-        palavraChave: regra.palavraChave,
-        categoria: regra.categoria,
+        palavraChave_categoria_prioridade: {
+          palavraChave: regra.palavraChave,
+          categoria: regra.categoria,
+          prioridade: regra.prioridade,
+        },
+      },
+      update: {
         subCategoria: regra.subCategoria,
       },
-      select: { id: true },
-    });
-
-    if (!existente) {
-      await prisma.regra.create({ data: regra });
-      continue;
-    }
-
-    await prisma.regra.update({
-      where: { id: existente.id },
-      data: {
-        prioridade: regra.prioridade,
-      },
+      create: regra,
     });
   }
 

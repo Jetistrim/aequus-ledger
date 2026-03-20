@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Transacao, Classificacao } from '../types';
 import { ModalEdicao } from './ModalEdicao';
+import { TooltipTexto } from './TooltipTexto';
 
 interface Props {
   transacoes: Transacao[];
   onClassificar: (id: string, classificacao: Classificacao) => Promise<void>;
-  onAtualizarObservacao: (id: string, observacao: string, categoriaGenerica: string | null) => Promise<void>;
+  onAtualizarIdentificador: (id: string, identificador: string, categoriaGenerica: string | null) => Promise<void>;
 }
 
 const corLinha: Record<Classificacao, string> = {
@@ -24,13 +25,16 @@ function contemIndicadorPix(descricao: string): boolean {
   return /\bPIX\b/i.test(descricao) || /\bQR\s*CODE\b/i.test(descricao);
 }
 
-export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarObservacao }: Props) {
+export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarIdentificador }: Props) {
   const [transacaoEditando, setTransacaoEditando] = useState<Transacao | null>(null);
 
   if (transacoes.length === 0) {
     return (
-      <div className="text-center py-16 text-gray-400">
-        <p className="text-lg">Nenhuma transação encontrada.</p>
+      <div className="text-center py-16 text-gray-500 border border-dashed border-gray-300 rounded-xl bg-white">
+        <p className="text-lg font-medium text-gray-700">Nenhuma transação carregada.</p>
+        <p className="mt-2 text-sm text-gray-500">
+          Use o botão de carregar dados existentes ou faça uma nova importação de arquivos.
+        </p>
       </div>
     );
   }
@@ -47,7 +51,7 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarObserv
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tipo</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Classificação</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tipo Desp.</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observação</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Identificador</th>
               <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
             </tr>
           </thead>
@@ -78,7 +82,8 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarObserv
                 <td className="px-4 py-3 whitespace-nowrap text-gray-700">
                   {new Date(t.dataTransacao).toLocaleDateString('pt-BR')}
                 </td>
-                <td className="px-4 py-3 text-gray-800 max-w-xs truncate">{t.descricao}</td>
+                <td className="px-4 py-3 text-gray-800 max-w-xs overflow-hidden">
+                  <TooltipTexto texto={t.descricao} className="text-gray-800 text-sm" /></td>
                 <td className="px-4 py-3 text-right font-medium text-gray-800">
                   {Number(t.valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
@@ -116,8 +121,8 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarObserv
                     {t.categoriaGenerica || '-'}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-500 text-xs max-w-[140px] truncate">
-                  {t.observacao || '-'}
+                <td className="px-4 py-3 max-w-[160px] overflow-hidden">
+                  <TooltipTexto texto={t.identificador} className="text-gray-500 text-xs" />
                 </td>
                 <td className="zpx-4 py-3 text-center">
                   {t.classificacao === 'INDEFINIDO' ? (
@@ -150,7 +155,7 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarObserv
                     <button
                       onClick={(e) => { e.stopPropagation(); setTransacaoEditando(t); }}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
-                      title="Editar observação"
+                      title="Editar identificador"
                     >
                       ✏️
                     </button>
@@ -167,7 +172,7 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarObserv
         <ModalEdicao
           transacao={transacaoEditando}
           onFechar={() => setTransacaoEditando(null)}
-          onSalvar={onAtualizarObservacao}
+          onSalvar={onAtualizarIdentificador}
         />
       )}
     </>

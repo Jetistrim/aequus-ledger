@@ -2,11 +2,12 @@ import { useState } from 'react';
 import * as api from '../services/api';
 
 interface Props {
+  totalTransacoes: number;
   indefinidos: number;
   onNovaImportacao: () => void;
 }
 
-export function BotaoGerarExtratos({ indefinidos, onNovaImportacao }: Props) {
+export function BotaoGerarExtratos({ totalTransacoes, indefinidos, onNovaImportacao }: Props) {
   const [gerando, setGerando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -34,7 +35,8 @@ export function BotaoGerarExtratos({ indefinidos, onNovaImportacao }: Props) {
     }
   }
 
-  const desabilitado = indefinidos > 0 || gerando;
+  const semTransacoes = totalTransacoes === 0;
+  const desabilitado = semTransacoes || indefinidos > 0 || gerando;
 
   return (
     <div className="flex flex-col items-end gap-2">
@@ -62,9 +64,11 @@ export function BotaoGerarExtratos({ indefinidos, onNovaImportacao }: Props) {
               </>
             ) : '📥 Gerar Extratos'}
           </button>
-          {indefinidos > 0 && (
+          {desabilitado && !gerando && (
             <div className="absolute bottom-full right-0 mb-2 w-56 bg-gray-800 text-white text-xs rounded-lg px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-              Classifique todas as {indefinidos} transação(ões) indefinida(s) antes de gerar.
+              {semTransacoes
+                ? 'Nenhuma transação carregada. Faça upload ou carregue dados existentes.'
+                : `Classifique todas as ${indefinidos} transação(ões) indefinida(s) antes de gerar.`}
             </div>
           )}
         </div>

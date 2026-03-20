@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { Classificacao, Regra, RespostaUpload, Transacao } from '../types';
+import { Classificacao, Regra, RespostaListagemTransacoes, RespostaUpload, Transacao } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -9,10 +9,16 @@ export async function uploadArquivo(file: File): Promise<RespostaUpload> {
   return uploadArquivos([file]);
 }
 
-export async function uploadArquivos(files: File[]): Promise<RespostaUpload> {
+export async function uploadArquivos(
+  files: File[],
+  identificadores: Record<string, string> = {}
+): Promise<RespostaUpload> {
   const formData = new FormData();
   for (const file of files) {
     formData.append('arquivos', file);
+  }
+  if (Object.keys(identificadores).length > 0) {
+    formData.append('identificadoresJson', JSON.stringify(identificadores));
   }
 
   const { data } = await api.post<RespostaUpload>('/upload', formData, {
@@ -22,14 +28,22 @@ export async function uploadArquivos(files: File[]): Promise<RespostaUpload> {
   return data;
 }
 
-export async function listarTransacoes(): Promise<Transacao[]> {
-  const { data } = await api.get<Transacao[]>('/transacoes');
+export interface ListarTransacoesParams {
+  pagina?: number;
+  limite?: number;
+  classificacao?: 'PESSOAL' | 'EMPRESA' | 'INDEFINIDO';
+  tipo?: 'ENTRADA' | 'SAIDA';
+  busca?: string;
+}
+
+export async function listarTransacoes(params?: ListarTransacoesParams): Promise<RespostaListagemTransacoes> {
+  const { data } = await api.get<RespostaListagemTransacoes>('/transacoes', { params });
   return data;
 }
 
 export async function atualizarTransacao(
   id: string,
-  payload: { classificacao?: Classificacao; observacao?: string; categoriaGenerica?: string | null }
+  payload: { classificacao?: Classificacao; identificador?: string; categoriaGenerica?: string | null }
 ): Promise<Transacao> {
   const { data } = await api.patch<Transacao>(`/transacoes/${id}`, payload);
   return data;

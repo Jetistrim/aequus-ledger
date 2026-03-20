@@ -74,6 +74,16 @@ function buildCsvComCabecalhoAnterior(): Buffer {
   return Buffer.from(csv, 'utf-8');
 }
 
+function buildCsvComLinhasDuplicadas(): Buffer {
+  const csv = [
+    'Data;Descricao;Credito (R$);Debito (R$);Saldo (R$)',
+    '20/03/2026;PIX JOAO;;-50,00;100,00',
+    '20/03/2026;PIX JOAO;;-50,00;50,00',
+  ].join('\n');
+
+  return Buffer.from(csv, 'utf-8');
+}
+
 function buildXlsComCabecalhoAnterior(): Buffer {
   const rows = [
     ['BANCO XPTO S.A.'],
@@ -154,6 +164,8 @@ function buildPixOfxComEstabelecimentoBuffer(): Buffer {
 }
 
 beforeEach(() => {
+  prismaMock.regra.findMany.mockReset();
+  prismaMock.transacao.create.mockReset();
   prismaMock.regra.findMany.mockResolvedValue([]);
   prismaMock.transacao.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
     id: crypto.randomUUID(),
@@ -264,5 +276,68 @@ describe('Upload e processamento por formato', () => {
     expect(res.status).toBe(200);
     expect(res.body.importadas).toBe(2);
     expect(res.body.transacoes).toHaveLength(2);
+  });
+
+  it('importa linhas idênticas no mesmo arquivo com hashes e códigos distintos por ocorrência', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/upload')
+      .attach('arquivos', buildCsvComLinhasDuplicadas(), { filename: 'duplicadas.csv', contentType: 'text/csv' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.importadas).toBe(2);
+    expect(res.body.duplicadas).toBe(0);
+    expect(res.body.transacoes).toHaveLength(2);
+
+    const chamadas = prismaMock.transacao.create.mock.calls as Array<[{ data: Record<string, unknown> }]>;
+    expect(chamadas).toHaveLength(2);
+
+    const primeiroPayload = chamadas[0][0].data;
+    const segundoPayload = chamadas[1][0].data;
+
+    expect(primeiroPayload.hashTransacao).not.toBe(segundoPayload.hashTransacao);
+    expect(primeiroPayload.codigoReferencia).not.toBe(segundoPayload.codigoReferencia);
+    expect(primeiroPayload.codigoReferencia).toMatch(/^\d{8}$/);
+    expect(segundoPayload.codigoReferencia).toMatch(/^\d{8}$/);
+  });
+
+  it('trata reimportação do mesmo arquivo como duplicata mantendo hash estável por ocorrência', async () => {
+    const vistos = new Set<string>();
+    prismaMock.transacao.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      const hash = String(data.hashTransacao);
+      if (vistos.has(hash)) {
+        const error = new Error('Unique constraint failed') as Error & { code?: string };
+        error.code = 'P2002';
+        throw error;
+      }
+
+      vistos.add(hash);
+      return {
+        id: crypto.randomUUID(),
+        ...data,
+        criadoEm: new Date('2026-03-20T00:00:00.000Z'),
+        atualizadoEm: new Date('2026-03-20T00:00:00.000Z'),
+      };
+    });
+
+    const app = createApp();
+
+    const primeiraImportacao = await request(app)
+      .post('/api/upload')
+      .attach('arquivos', buildCsvComLinhasDuplicadas(), { filename: 'duplicadas.csv', contentType: 'text/csv' });
+
+    const segundaImportacao = await request(app)
+      .post('/api/upload')
+      .attach('arquivos', buildCsvComLinhasDuplicadas(), { filename: 'duplicadas.csv', contentType: 'text/csv' });
+
+    expect(primeiraImportacao.status).toBe(200);
+    expect(primeiraImportacao.body.importadas).toBe(2);
+    expect(primeiraImportacao.body.duplicadas).toBe(0);
+
+    expect(segundaImportacao.status).toBe(200);
+    expect(segundaImportacao.body.importadas).toBe(0);
+    expect(segundaImportacao.body.duplicadas).toBe(2);
+    expect(segundaImportacao.body.transacoes).toHaveLength(0);
   });
 });

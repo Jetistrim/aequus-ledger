@@ -11,7 +11,8 @@ export interface Transacao {
   classificacao: Classificacao;
   categoriaGenerica?: string | null;
   hashTransacao: string;
-  observacao?: string;
+  codigoReferencia?: string | null;
+  identificador: string;
   arquivoOrigem?: string;
   // Campos computados dinamicamente pela API (não persistidos)
   pixAutoClassificado?: boolean;
@@ -32,4 +33,24 @@ export interface RespostaUpload {
   duplicadas: number;
   indefinidas: number;
   transacoes: Transacao[];
+}
+
+export interface TotaisTransacoes {
+  pessoal: number;
+  empresa: number;
+  total: number;
+  indefinidos: number;
+}
+
+export interface PaginacaoTransacoes {
+  paginaAtual: number;
+  totalPaginas: number;
+  totalRegistros: number;
+  limite: number;
+}
+
+export interface RespostaListagemTransacoes {
+  dados: Transacao[];
+  paginacao: PaginacaoTransacoes;
+  totais: TotaisTransacoes;
 }

@@ -1,24 +1,20 @@
 import { useState, useRef, DragEvent, ChangeEvent } from 'react';
-import * as api from '../services/api';
-import { RespostaUpload } from '../types';
 
 interface Props {
-  onUploadSucesso: (resposta: RespostaUpload) => void;
+  onArquivosProntos: (arquivos: File[]) => void;
 }
 
 const EXTENSOES_VALIDAS = ['.csv', '.ofx', '.xls', '.xlsx'];
 const LIMITE_TOTAL_PASTA_BYTES = 100 * 1024 * 1024;
 
 interface OpcoesSelecao {
-  autoEnviar: boolean;
   ignorarIncompativeis: boolean;
   origem: 'arquivos' | 'pasta';
 }
 
-export function UploadZone({ onUploadSucesso }: Props) {
+export function UploadZone({ onArquivosProntos }: Props) {
   const [arrastando, setArrastando] = useState(false);
   const [arquivos, setArquivos] = useState<File[]>([]);
-  const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [aviso, setAviso] = useState<string | null>(null);
   const inputArquivosRef = useRef<HTMLInputElement>(null);
@@ -42,26 +38,7 @@ export function UploadZone({ onUploadSucesso }: Props) {
     if (inputPastaRef.current) inputPastaRef.current.value = '';
   }
 
-  async function enviarArquivos(filesParaEnviar: File[]) {
-    if (filesParaEnviar.length === 0) return;
-
-    setCarregando(true);
-    setErro(null);
-
-    try {
-      const resposta = await api.uploadArquivos(filesParaEnviar);
-      onUploadSucesso(resposta);
-    } catch (e: unknown) {
-      const msg =
-        (e as { response?: { data?: { erro?: string } } })?.response?.data?.erro ||
-        'Erro ao processar o arquivo. Verifique o formato e tente novamente.';
-      setErro(msg);
-    } finally {
-      setCarregando(false);
-    }
-  }
-
-  async function selecionarArquivos(filesSelecionados: File[], opcoes: OpcoesSelecao) {
+  function selecionarArquivos(filesSelecionados: File[], opcoes: OpcoesSelecao) {
     if (filesSelecionados.length === 0) {
       setArquivos([]);
       setAviso(null);
@@ -118,11 +95,6 @@ export function UploadZone({ onUploadSucesso }: Props) {
         : null
     );
     setArquivos(arquivosCompativeis);
-
-    if (opcoes.autoEnviar) {
-      await enviarArquivos(arquivosCompativeis);
-    }
-
     limparSeletores();
   }
 
@@ -139,8 +111,7 @@ export function UploadZone({ onUploadSucesso }: Props) {
     e.preventDefault();
     setArrastando(false);
     const files = Array.from(e.dataTransfer.files || []);
-    void selecionarArquivos(files, {
-      autoEnviar: false,
+    selecionarArquivos(files, {
       ignorarIncompativeis: false,
       origem: 'arquivos',
     });
@@ -148,8 +119,7 @@ export function UploadZone({ onUploadSucesso }: Props) {
 
   function onInputChange(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    void selecionarArquivos(files, {
-      autoEnviar: false,
+    selecionarArquivos(files, {
       ignorarIncompativeis: false,
       origem: 'arquivos',
     });
@@ -157,8 +127,7 @@ export function UploadZone({ onUploadSucesso }: Props) {
 
   function onFolderInputChange(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files || []);
-    void selecionarArquivos(files, {
-      autoEnviar: true,
+    selecionarArquivos(files, {
       ignorarIncompativeis: true,
       origem: 'pasta',
     });
@@ -227,16 +196,14 @@ export function UploadZone({ onUploadSucesso }: Props) {
           <button
             type="button"
             onClick={() => inputArquivosRef.current?.click()}
-            disabled={carregando}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-medium hover:border-blue-400 hover:text-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-white border border-gray-300 text-gray-700 font-medium hover:border-blue-400 hover:text-blue-700 transition-colors"
           >
             Selecionar arquivos
           </button>
           <button
             type="button"
             onClick={abrirSeletorPasta}
-            disabled={carregando}
-            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
           >
             Selecionar pasta
           </button>
@@ -257,19 +224,10 @@ export function UploadZone({ onUploadSucesso }: Props) {
 
       {arquivos.length > 0 && (
         <button
-          onClick={() => void enviarArquivos(arquivos)}
-          disabled={carregando}
-          className="px-8 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          onClick={() => onArquivosProntos(arquivos)}
+          className="px-8 py-3 bg-blue-600 text-white rounded-xl font-semibold hover:bg-blue-700 transition-colors shadow-sm"
         >
-          {carregando ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
-              </svg>
-              Processando arquivos...
-            </span>
-          ) : 'Importar Extrato'}
+          Revisar Arquivos →
         </button>
       )}
     </div>

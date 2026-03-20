@@ -2,26 +2,39 @@ import { Request, Response, NextFunction } from 'express';
 import { Tipo } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { parseFile, TransacaoRaw } from '../services/parserService';
-import { gerarHash } from '../services/hashService';
+import { gerarChaveBaseTransacao, gerarCodigoReferencia, gerarHash } from '../services/hashService';
 import { classificar } from '../services/classificadorService';
 import { enrichTransacoes } from '../utils/responseHelpers';
+import { sanitizeTextInput } from '../utils/normalization';
 
 const DB_WRITE_BATCH_SIZE = 40;
 
 async function criarTransacoesEmLote(
   transacoesRaw: TransacaoRaw[],
-  regras: Awaited<ReturnType<typeof prisma.regra.findMany>>
+  regras: Awaited<ReturnType<typeof prisma.regra.findMany>>,
+  identificadoresPorArquivo: Record<string, string> = {}
 ) {
   let importadas = 0;
   let duplicadas = 0;
   const transacoesSalvas: Awaited<ReturnType<typeof prisma.transacao.create>>[] = [];
+  const ocorrenciasPorChave = new Map<string, number>();
 
   for (let i = 0; i < transacoesRaw.length; i += DB_WRITE_BATCH_SIZE) {
     const lote = transacoesRaw.slice(i, i + DB_WRITE_BATCH_SIZE);
 
     const resultados = await Promise.allSettled(
       lote.map(async (raw) => {
-        const hash = gerarHash(raw.dataTransacao, raw.valor, raw.descricao);
+        const chaveBase = gerarChaveBaseTransacao(raw.dataTransacao, raw.valor, raw.descricao);
+        const indiceOcorrencia = ocorrenciasPorChave.get(chaveBase) ?? 0;
+        ocorrenciasPorChave.set(chaveBase, indiceOcorrencia + 1);
+
+        const hash = gerarHash(raw.dataTransacao, raw.valor, raw.descricao, indiceOcorrencia);
+        const codigoReferencia = gerarCodigoReferencia(
+          raw.dataTransacao,
+          raw.valor,
+          raw.descricao,
+          indiceOcorrencia,
+        );
         const tipo: Tipo = raw.valor >= 0 ? 'ENTRADA' : 'SAIDA';
         const { classificacao, categoriaGenerica } = classificar(
           raw.descricao,
@@ -29,6 +42,7 @@ async function criarTransacoesEmLote(
           raw.dataTransacao,
           Math.abs(raw.valor),
         );
+        const identificador = identificadoresPorArquivo[raw.arquivoOrigem] || '';
 
         return prisma.transacao.create({
           data: {
@@ -39,7 +53,9 @@ async function criarTransacoesEmLote(
             classificacao,
             categoriaGenerica,
             hashTransacao: hash,
+            codigoReferencia,
             arquivoOrigem: raw.arquivoOrigem,
+            identificador,
           },
         });
       })
@@ -74,6 +90,24 @@ export async function uploadArquivo(req: Request, res: Response, next: NextFunct
       return;
     }
 
+    // Parseia e sanitiza identificadores (filename → label)
+    const identificadores: Record<string, string> = {};
+    const identificadoresJson = req.body?.identificadoresJson as string | undefined;
+    if (identificadoresJson) {
+      try {
+        const parsed: unknown = JSON.parse(identificadoresJson);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          for (const [key, val] of Object.entries(parsed as Record<string, unknown>)) {
+            if (typeof val === 'string') {
+              identificadores[String(key)] = sanitizeTextInput(val).slice(0, 100);
+            }
+          }
+        }
+      } catch {
+        // JSON mal-formado — ignora silenciosamente
+      }
+    }
+
     const lotePorArquivo = await Promise.all(
       arquivos.map(async (arquivo) => ({ transacoes: await parseFile(arquivo) }))
     );
@@ -88,7 +122,11 @@ export async function uploadArquivo(req: Request, res: Response, next: NextFunct
     // Carrega regras uma vez para todo o processamento
     const regras = await prisma.regra.findMany();
 
-    const { importadas, duplicadas, transacoesSalvas } = await criarTransacoesEmLote(transacoesRaw, regras);
+    const { importadas, duplicadas, transacoesSalvas } = await criarTransacoesEmLote(
+      transacoesRaw,
+      regras,
+      identificadores
+    );
 
     const indefinidas = transacoesSalvas.filter((t) => t.classificacao === 'INDEFINIDO').length;
 

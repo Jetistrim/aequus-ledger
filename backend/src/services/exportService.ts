@@ -31,7 +31,7 @@ export async function gerarExtratos(): Promise<{ pessoalPath: string; empresaPat
   const pessoalPath = path.resolve(EXPORTS_DIR, `extrato_pessoal_${hoje}.csv`);
   const empresaPath = path.resolve(EXPORTS_DIR, `extrato_empresa_${hoje}.csv`);
 
-  const campos = ['data_transacao', 'descricao', 'valor', 'tipo', 'classificacao', 'categoria_generica', 'observacao'];
+  const campos = ['data_transacao', 'descricao', 'valor', 'tipo', 'classificacao', 'categoria_generica', 'codigo_referencia', 'identificador'];
 
   const mapear = (t: Transacao) => ({
     data_transacao: t.dataTransacao.toISOString().split('T')[0],
@@ -40,7 +40,8 @@ export async function gerarExtratos(): Promise<{ pessoalPath: string; empresaPat
     tipo: t.tipo,
     classificacao: t.classificacao,
     categoria_generica: t.categoriaGenerica ?? '',
-    observacao: protectCsvFormula(t.observacao || ''),
+    codigo_referencia: protectCsvFormula(t.codigoReferencia || ''),
+    identificador: protectCsvFormula(t.identificador || ''),
   });
 
   // BOM UTF-8 para compatibilidade com Excel

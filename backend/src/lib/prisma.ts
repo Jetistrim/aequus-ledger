@@ -15,3 +15,4 @@ const prismaClientOptions: ConstructorParameters<typeof PrismaClient>[0] = isSql
   : { adapter: new PrismaPg({ connectionString }) };
 
 export const prisma = new PrismaClient(prismaClientOptions);
+export { isSqlite };

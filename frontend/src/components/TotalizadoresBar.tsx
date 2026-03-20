@@ -1,24 +1,15 @@
-import { Transacao } from '../types';
+import { TotaisTransacoes } from '../types';
 
 interface Props {
-  transacoes: Transacao[];
+  totais: TotaisTransacoes;
 }
 
 function formatarMoeda(valor: number): string {
   return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
 
-export function TotalizadoresBar({ transacoes }: Props) {
-  const pessoal = transacoes
-    .filter((t) => t.classificacao === 'PESSOAL')
-    .reduce((acc, t) => acc + Number(t.valor), 0);
-
-  const empresa = transacoes
-    .filter((t) => t.classificacao === 'EMPRESA')
-    .reduce((acc, t) => acc + Number(t.valor), 0);
-
-  const total = pessoal + empresa;
-  const indefinidos = transacoes.filter((t) => t.classificacao === 'INDEFINIDO').length;
+export function TotalizadoresBar({ totais }: Props) {
+  const { pessoal, empresa, total, indefinidos } = totais;
 
   return (
     <div className="flex flex-wrap gap-4 p-4 bg-white rounded-xl shadow-sm border border-gray-100">

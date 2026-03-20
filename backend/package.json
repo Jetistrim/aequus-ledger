@@ -6,7 +6,8 @@
     "scripts": {
         "prisma:generate": "prisma generate --schema prisma/schema.prisma",
         "build": "npm run prisma:generate && tsc -p tsconfig.json && tsc -p tsconfig.seed.json",
-        "test": "npm run prisma:generate && tsc --noEmit -p tsconfig.json",
+            "typecheck": "npm run prisma:generate && tsc --noEmit -p tsconfig.json",
+            "test": "npm run typecheck && vitest run",
         "test:unit": "vitest run",
         "dev": "npm run dev:volatile",
         "dev:volatile": "npm run db:prepare:volatile && cross-env DATABASE_URL=file:./prisma/dev.db nodemon --watch src --ext ts --exec \"ts-node --transpile-only src/index.ts\"",

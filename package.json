@@ -12,6 +12,7 @@
     "docker:logs": "docker compose --profile dev --profile prod logs -f",
     "docker:healthcheck": "node scripts/healthcheck.mjs",
     "security:scan": "node scripts/security-scan.mjs",
+    "typecheck": "npm run typecheck --prefix backend && npm run typecheck --prefix frontend",
     "test": "npm run test --prefix backend && npm run test --prefix frontend",
     "prepare": "husky"
   },

@@ -1,20 +1,36 @@
 import { useState, useCallback } from 'react';
-import { Transacao, Classificacao } from '../types';
+import { Transacao, Classificacao, PaginacaoTransacoes, TotaisTransacoes } from '../types';
 import * as api from '../services/api';
 
 export function useTransacoes() {
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
+  const [paginacao, setPaginacao] = useState<PaginacaoTransacoes>({
+    paginaAtual: 1,
+    totalPaginas: 1,
+    totalRegistros: 0,
+    limite: 25,
+  });
+  const [totais, setTotais] = useState<TotaisTransacoes>({
+    pessoal: 0,
+    empresa: 0,
+    total: 0,
+    indefinidos: 0,
+  });
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
-  const carregar = useCallback(async () => {
+  const carregar = useCallback(async (params?: api.ListarTransacoesParams): Promise<Transacao[] | null> => {
     setCarregando(true);
     setErro(null);
     try {
-      const data = await api.listarTransacoes();
-      setTransacoes(data);
+      const data = await api.listarTransacoes(params);
+      setTransacoes(data.dados);
+      setPaginacao(data.paginacao);
+      setTotais(data.totais);
+      return data.dados;
     } catch {
       setErro('Erro ao carregar transações.');
+      return null;
     } finally {
       setCarregando(false);
     }
@@ -35,24 +51,26 @@ export function useTransacoes() {
     }
   }, []);
 
-  const atualizarObservacao = useCallback(async (id: string, observacao: string, categoriaGenerica: string | null) => {
+  const atualizarIdentificador = useCallback(async (id: string, identificador: string, categoriaGenerica: string | null) => {
     try {
-      const atualizada = await api.atualizarTransacao(id, { observacao, categoriaGenerica });
+      const atualizada = await api.atualizarTransacao(id, { identificador, categoriaGenerica });
       setTransacoes((prev) =>
         prev.map((t) => (t.id === id ? atualizada : t))
       );
     } catch {
-      setErro('Erro ao atualizar observação.');
+      setErro('Erro ao atualizar identificador.');
     }
   }, []);
 
   return {
     transacoes,
+    paginacao,
+    totais,
     carregando,
     erro,
     carregar,
     definirTransacoes,
     classificar,
-    atualizarObservacao,
+    atualizarIdentificador,
   };
 }

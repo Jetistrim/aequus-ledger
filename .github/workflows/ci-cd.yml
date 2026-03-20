@@ -83,6 +83,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Normalize image owner for GHCR
+        id: ghcr_meta
+        run: echo "owner_lc=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Build and push image to GHCR
         uses: docker/build-push-action@v6
         with:
@@ -90,8 +94,8 @@ jobs:
           file: ./frontend/Dockerfile.prod
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
-            ghcr.io/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ghcr.io/${{ steps.ghcr_meta.outputs.owner_lc }}/${{ env.IMAGE_NAME }}:latest
+            ghcr.io/${{ steps.ghcr_meta.outputs.owner_lc }}/${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
 
       - name: Build and push image to Docker Hub
         if: ${{ env.DOCKERHUB_USERNAME != '' && env.DOCKERHUB_TOKEN != '' }}

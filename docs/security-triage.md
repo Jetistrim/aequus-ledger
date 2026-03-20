@@ -19,6 +19,7 @@ Separar vulnerabilidades de runtime das vulnerabilidades de build/bootstrap para
 1. Alertas de imagem base Node e Nginx sao comuns mesmo em imagens oficiais e atualizadas.
 2. Alertas no estagio `build` do frontend nao ficam expostos em runtime no profile prod.
 3. Alertas ligados ao toolchain Prisma aparecem no audit de dependencias de desenvolvimento e no container de bootstrap.
+4. `CVE-2026-22184` (zlib/untgz) afeta versoes ate 1.3.1.2 e requer atualizacao de pacote nos containers baseados em Alpine.
 
 ## Decisoes Tecnicas Aplicadas
 
@@ -28,6 +29,7 @@ Separar vulnerabilidades de runtime das vulnerabilidades de build/bootstrap para
 4. Frontend de producao com HTTPS no Nginx e proxy interno para API.
 5. Containers com hardening basico: `no-new-privileges`, `cap_drop: ALL`, `pids_limit`, filesystem readonly no frontend prod.
 6. Scan automatizado com Trivy no GitHub Actions para bloquear regressao de `CRITICAL/HIGH`.
+7. Mitigacao aplicada para `CVE-2026-22184` com `apk upgrade --no-cache zlib` nos Dockerfiles de backend, frontend dev e frontend prod.
 
 ## Pendencias Recomendadas
 

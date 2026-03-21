@@ -53,7 +53,8 @@ test('importa XLS com cabecalho anterior e valida erro apos 8 segundos', async (
     });
   }
 
-  await page.getByRole('button', { name: 'Importar Extrato' }).click();
+  await page.getByRole('button', { name: /Revisar Arquivos/i }).click();
+  await page.getByRole('button', { name: /Processar\s+\d+\s+arquivo\(s\)/i }).click();
 
   const uploadResponse = await uploadResponsePromise;
 

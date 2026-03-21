@@ -1,0 +1,50 @@
+{
+  "csv": {
+    "basic": {
+      "spec": "upload-csv.spec.ts",
+      "realEnvVar": "CSV_FILE_PATH"
+    },
+    "latin1_encoding": {
+      "status": "pending",
+      "priority": "high"
+    },
+    "comma_separator": {
+      "status": "pending",
+      "priority": "medium"
+    }
+  },
+  "ofx": {
+    "basic": {
+      "spec": "upload-ofx.spec.ts",
+      "realEnvVar": "OFX_FILE_PATH"
+    },
+    "sgml_variant": {
+      "status": "pending",
+      "priority": "high"
+    }
+  },
+  "xls": {
+    "basic": {
+      "spec": "upload-xls.spec.ts",
+      "realEnvVar": "XLS_FILE_PATH"
+    },
+    "header_shifted": {
+      "spec": "upload-xls-header.spec.ts",
+      "realEnvVar": "XLS_FILE_PATH"
+    },
+    "merged_cells": {
+      "status": "pending",
+      "priority": "medium"
+    }
+  },
+  "xlsx": {
+    "basic": {
+      "spec": "upload-xlsx.spec.ts",
+      "realEnvVar": "XLSX_FILE_PATH"
+    },
+    "date_and_currency_formats": {
+      "status": "pending",
+      "priority": "medium"
+    }
+  }
+}

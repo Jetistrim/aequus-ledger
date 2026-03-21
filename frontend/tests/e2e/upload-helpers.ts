@@ -7,6 +7,8 @@ export interface UploadFixture {
   buffer: Buffer;
 }
 
+export type UploadFileInput = UploadFixture | string;
+
 const VALIDACAO_422_APOS_UPLOAD_MS = 8_000;
 
 export function buildCsvFixture(): UploadFixture {
@@ -73,7 +75,7 @@ export function buildSpreadsheetFixture(bookType: 'xls' | 'xlsx'): UploadFixture
   };
 }
 
-export async function uploadSingleFileAndAssert(page: Page, fixture: UploadFixture): Promise<void> {
+export async function uploadSingleFileAndAssert(page: Page, fixture: UploadFileInput): Promise<void> {
   await page.goto('/');
 
   const uploadResponsePromise = page.waitForResponse(
@@ -86,7 +88,9 @@ export async function uploadSingleFileAndAssert(page: Page, fixture: UploadFixtu
 
   // Each test uploads exactly one file, matching the UI rule for non-folder imports.
   await fileInput.setInputFiles(fixture);
-  await page.getByRole('button', { name: 'Importar Extrato' }).click();
+
+  await page.getByRole('button', { name: /Revisar Arquivos/i }).click();
+  await page.getByRole('button', { name: /Processar\s+\d+\s+arquivo\(s\)/i }).click();
 
   const uploadResponse = await uploadResponsePromise;
 
@@ -102,4 +106,13 @@ export async function uploadSingleFileAndAssert(page: Page, fixture: UploadFixtu
 
   await expect(page.getByText('Nenhuma transação válida encontrada nos arquivos.')).toHaveCount(0);
   await expect(page.getByText(/transações importadas/i)).toBeVisible();
+}
+
+export function getFixtureFromEnvOrFactory(envVarName: string, factory: () => UploadFixture): UploadFileInput {
+  const realFilePath = process.env[envVarName]?.trim();
+  if (realFilePath) {
+    return realFilePath;
+  }
+
+  return factory();
 }

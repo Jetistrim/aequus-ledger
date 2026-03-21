@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Transacao } from '../types';
+import { ApiRequestError } from '../services/api';
 
 interface Props {
   transacao: Transacao;
@@ -11,12 +12,37 @@ export function ModalEdicao({ transacao, onFechar, onSalvar }: Props) {
   const [identificador, setIdentificador] = useState(transacao.identificador || '');
   const [categoriaGenerica, setCategoriaGenerica] = useState(transacao.categoriaGenerica || '');
   const [salvando, setSalvando] = useState(false);
+  const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [erroIdentificador, setErroIdentificador] = useState<string | null>(null);
+  const [erroCategoria, setErroCategoria] = useState<string | null>(null);
 
   async function handleSalvar() {
     setSalvando(true);
-    await onSalvar(transacao.id, identificador, categoriaGenerica || null);
-    setSalvando(false);
-    onFechar();
+    setErroGeral(null);
+    setErroIdentificador(null);
+    setErroCategoria(null);
+
+    try {
+      await onSalvar(transacao.id, identificador, categoriaGenerica || null);
+      onFechar();
+    } catch (err) {
+      if (err instanceof ApiRequestError) {
+        setErroGeral(err.message);
+
+        for (const detalhe of err.details) {
+          if (detalhe.campo === 'identificador') {
+            setErroIdentificador(detalhe.mensagem);
+          }
+          if (detalhe.campo === 'categoriaGenerica') {
+            setErroCategoria(detalhe.mensagem);
+          }
+        }
+      } else {
+        setErroGeral('Não foi possível salvar a transação.');
+      }
+    } finally {
+      setSalvando(false);
+    }
   }
 
   return (
@@ -53,6 +79,7 @@ export function ModalEdicao({ transacao, onFechar, onSalvar }: Props) {
             placeholder="Ex: Alimentação, Transporte, Imposto..."
             maxLength={100}
           />
+          {erroCategoria && <p className="mt-1 text-xs text-red-600">{erroCategoria}</p>}
         </div>
 
         <div className="mb-6">
@@ -65,7 +92,14 @@ export function ModalEdicao({ transacao, onFechar, onSalvar }: Props) {
             maxLength={100}
             placeholder="Ex: Santander do Gabriel"
           />
+          {erroIdentificador && <p className="mt-1 text-xs text-red-600">{erroIdentificador}</p>}
         </div>
+
+        {erroGeral && (
+          <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {erroGeral}
+          </div>
+        )}
 
         <div className="flex gap-3 justify-end">
           <button

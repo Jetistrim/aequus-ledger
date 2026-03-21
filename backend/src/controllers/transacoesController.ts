@@ -26,6 +26,36 @@ const atualizarTransacaoBodySchema = z
     { message: 'Informe ao menos um campo para atualização.' }
   );
 
+interface CampoErroValidacao {
+  campo: string;
+  mensagem: string;
+}
+
+/**
+ * Converte issues de validação do Zod para o formato canônico de erro por campo.
+ */
+function mapearErrosZod(issues: z.ZodIssue[]): CampoErroValidacao[] {
+  return issues.map((issue) => ({
+    campo: issue.path.length > 0 ? String(issue.path[0]) : 'payload',
+    mensagem: issue.message,
+  }));
+}
+
+/**
+ * Responde erros de validação com payload padronizado para consumo do frontend.
+ */
+function responderErroValidacao(
+  res: Response,
+  mensagem: string,
+  issues: z.ZodIssue[]
+): void {
+  res.status(400).json({
+    erro: mensagem,
+    codigo: 'VALIDATION_ERROR',
+    detalhes: mapearErrosZod(issues),
+  });
+}
+
 export async function listarTransacoes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const paginaQuery = Number(req.query.pagina ?? 1);
@@ -127,13 +157,13 @@ export async function atualizarTransacao(req: Request, res: Response, next: Next
   try {
     const parsedParams = idParamSchema.safeParse(req.params);
     if (!parsedParams.success) {
-      res.status(400).json({ erro: parsedParams.error.issues[0]?.message ?? 'ID inválido.' });
+      responderErroValidacao(res, 'Parâmetros inválidos.', parsedParams.error.issues);
       return;
     }
 
     const parsedBody = atualizarTransacaoBodySchema.safeParse(req.body);
     if (!parsedBody.success) {
-      res.status(400).json({ erro: parsedBody.error.issues[0]?.message ?? 'Payload inválido.' });
+      responderErroValidacao(res, 'Payload inválido.', parsedBody.error.issues);
       return;
     }
 
@@ -153,7 +183,10 @@ export async function atualizarTransacao(req: Request, res: Response, next: Next
     res.json(transacao);
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
-      res.status(404).json({ erro: 'Transação não encontrada.' });
+      res.status(404).json({
+        erro: 'Transação não encontrada.',
+        codigo: 'RESOURCE_NOT_FOUND',
+      });
       return;
     }
 
@@ -165,7 +198,7 @@ export async function deletarTransacao(req: Request, res: Response, next: NextFu
   try {
     const parsedParams = idParamSchema.safeParse(req.params);
     if (!parsedParams.success) {
-      res.status(400).json({ erro: parsedParams.error.issues[0]?.message ?? 'ID inválido.' });
+      responderErroValidacao(res, 'Parâmetros inválidos.', parsedParams.error.issues);
       return;
     }
 
@@ -176,7 +209,10 @@ export async function deletarTransacao(req: Request, res: Response, next: NextFu
     res.status(204).send();
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
-      res.status(404).json({ erro: 'Transação não encontrada.' });
+      res.status(404).json({
+        erro: 'Transação não encontrada.',
+        codigo: 'RESOURCE_NOT_FOUND',
+      });
       return;
     }
 

@@ -13,26 +13,46 @@ export function useRegras() {
     try {
       const data = await api.listarRegras();
       setRegras(data);
-    } catch {
-      setErro('Erro ao carregar regras.');
+    } catch (err) {
+      setErro(api.formatApiErrorMessage(err, 'Erro ao carregar regras.'));
     } finally {
       setCarregando(false);
     }
   }, []);
 
   const criar = useCallback(async (regra: Omit<Regra, 'id'>) => {
-    const nova = await api.criarRegra(regra);
-    setRegras((prev) => [...prev, nova].sort((a, b) => a.prioridade - b.prioridade));
+    try {
+      setErro(null);
+      const nova = await api.criarRegra(regra);
+      setRegras((prev) => [...prev, nova].sort((a, b) => a.prioridade - b.prioridade));
+    } catch (err) {
+      const mensagem = api.formatApiErrorMessage(err, 'Erro ao criar regra.');
+      setErro(mensagem);
+      throw err;
+    }
   }, []);
 
   const atualizar = useCallback(async (id: number, dados: Partial<Omit<Regra, 'id'>>) => {
-    const atualizada = await api.atualizarRegra(id, dados);
-    setRegras((prev) => prev.map((r) => (r.id === id ? atualizada : r)));
+    try {
+      setErro(null);
+      const atualizada = await api.atualizarRegra(id, dados);
+      setRegras((prev) => prev.map((r) => (r.id === id ? atualizada : r)));
+    } catch (err) {
+      const mensagem = api.formatApiErrorMessage(err, 'Erro ao atualizar regra.');
+      setErro(mensagem);
+      throw err;
+    }
   }, []);
 
   const deletar = useCallback(async (id: number) => {
-    await api.deletarRegra(id);
-    setRegras((prev) => prev.filter((r) => r.id !== id));
+    try {
+      setErro(null);
+      await api.deletarRegra(id);
+      setRegras((prev) => prev.filter((r) => r.id !== id));
+    } catch (err) {
+      setErro(api.formatApiErrorMessage(err, 'Erro ao excluir regra.'));
+      throw err;
+    }
   }, []);
 
   useEffect(() => { carregar(); }, [carregar]);

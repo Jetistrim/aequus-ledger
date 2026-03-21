@@ -1,5 +1,8 @@
 import { PainelRegras } from '../components/PainelRegras';
 
+/**
+ * Página de gerenciamento de regras de classificação.
+ */
 export function RegrasPage() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -7,7 +10,7 @@ export function RegrasPage() {
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold text-gray-800">💰 Conciliação Financeira</h1>
           <a
-            href="/"
+            href="/conciliacao"
             className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
           >
             ← Voltar à Conciliação

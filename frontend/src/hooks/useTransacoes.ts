@@ -28,8 +28,8 @@ export function useTransacoes() {
       setPaginacao(data.paginacao);
       setTotais(data.totais);
       return data.dados;
-    } catch {
-      setErro('Erro ao carregar transações.');
+    } catch (err) {
+      setErro(api.formatApiErrorMessage(err, 'Erro ao carregar transações.'));
       return null;
     } finally {
       setCarregando(false);
@@ -46,8 +46,8 @@ export function useTransacoes() {
       setTransacoes((prev) =>
         prev.map((t) => (t.id === id ? atualizada : t))
       );
-    } catch {
-      setErro('Erro ao classificar transação.');
+    } catch (err) {
+      setErro(api.formatApiErrorMessage(err, 'Erro ao classificar transação.'));
     }
   }, []);
 
@@ -57,8 +57,11 @@ export function useTransacoes() {
       setTransacoes((prev) =>
         prev.map((t) => (t.id === id ? atualizada : t))
       );
-    } catch {
-      setErro('Erro ao atualizar identificador.');
+    } catch (err) {
+      const apiError = api.toApiRequestError(err, 'Erro ao atualizar identificador.');
+      const mensagem = apiError.details[0]?.mensagem || apiError.message;
+      setErro(mensagem);
+      throw apiError;
     }
   }, []);
 

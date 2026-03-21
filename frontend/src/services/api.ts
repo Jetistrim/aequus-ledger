@@ -5,6 +5,69 @@ const api = axios.create({
   baseURL: '/api',
 });
 
+/**
+ * Detalhe de erro vinculado a um campo específico retornado pela API.
+ */
+export interface ApiErrorDetail {
+  campo: string;
+  mensagem: string;
+}
+
+/**
+ * Contrato de erro padrão exposto pelos endpoints da API.
+ */
+export interface ApiErrorResponse {
+  erro?: string;
+  codigo?: string;
+  detalhes?: ApiErrorDetail[];
+}
+
+/**
+ * Erro normalizado para consumo no frontend, preservando código e detalhes por campo.
+ */
+export class ApiRequestError extends Error {
+  code?: string;
+  details: ApiErrorDetail[];
+
+  constructor(message: string, code?: string, details: ApiErrorDetail[] = []) {
+    super(message);
+    this.name = 'ApiRequestError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+/**
+ * Converte diferentes formatos de falha HTTP para uma instância consistente de ApiRequestError.
+ */
+function parseApiError(error: unknown, fallbackMessage: string): ApiRequestError {
+  if (axios.isAxiosError<ApiErrorResponse>(error)) {
+    const payload = error.response?.data;
+    const message = payload?.erro || fallbackMessage;
+    const details = Array.isArray(payload?.detalhes) ? payload.detalhes : [];
+    return new ApiRequestError(message, payload?.codigo, details);
+  }
+
+  return new ApiRequestError(fallbackMessage);
+}
+
+/**
+ * Extrai uma mensagem amigável priorizando o primeiro detalhe de campo quando disponível.
+ */
+export function formatApiErrorMessage(error: unknown, fallbackMessage: string): string {
+  const apiError = parseApiError(error, fallbackMessage);
+  const firstFieldError = apiError.details[0]?.mensagem;
+
+  return firstFieldError || apiError.message;
+}
+
+/**
+ * Normaliza a falha para ApiRequestError sem perder metadados do backend.
+ */
+export function toApiRequestError(error: unknown, fallbackMessage: string): ApiRequestError {
+  return parseApiError(error, fallbackMessage);
+}
+
 export async function uploadArquivo(file: File): Promise<RespostaUpload> {
   return uploadArquivos([file]);
 }
@@ -57,16 +120,24 @@ export async function listarRegras(): Promise<Regra[]> {
 export async function criarRegra(
   regra: Omit<Regra, 'id'>
 ): Promise<Regra> {
-  const { data } = await api.post<Regra>('/regras', regra);
-  return data;
+  try {
+    const { data } = await api.post<Regra>('/regras', regra);
+    return data;
+  } catch (error) {
+    throw parseApiError(error, 'Erro ao criar regra.');
+  }
 }
 
 export async function atualizarRegra(
   id: number,
   regra: Partial<Omit<Regra, 'id'>>
 ): Promise<Regra> {
-  const { data } = await api.put<Regra>(`/regras/${id}`, regra);
-  return data;
+  try {
+    const { data } = await api.put<Regra>(`/regras/${id}`, regra);
+    return data;
+  } catch (error) {
+    throw parseApiError(error, 'Erro ao atualizar regra.');
+  }
 }
 
 export async function deletarRegra(id: number): Promise<void> {

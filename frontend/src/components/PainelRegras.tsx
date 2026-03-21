@@ -3,7 +3,7 @@ import { Regra, Categoria } from '../types';
 import { useRegras } from '../hooks/useRegras';
 
 export function PainelRegras() {
-  const { regras, carregando, criar, atualizar, deletar } = useRegras();
+  const { regras, carregando, erro: erroApi, criar, atualizar, deletar } = useRegras();
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [novaRegra, setNovaRegra] = useState({ palavraChave: '', categoria: 'PESSOAL' as Categoria, subCategoria: '', prioridade: 0 });
   const [editData, setEditData] = useState<Partial<Omit<Regra, 'id'>>>({});
@@ -12,14 +12,22 @@ export function PainelRegras() {
   async function handleCriar() {
     if (!novaRegra.palavraChave.trim()) { setErro('Informe ao menos uma palavra-chave.'); return; }
     setErro(null);
-    await criar(novaRegra);
-    setNovaRegra({ palavraChave: '', categoria: 'PESSOAL', subCategoria: '', prioridade: 0 });
+    try {
+      await criar(novaRegra);
+      setNovaRegra({ palavraChave: '', categoria: 'PESSOAL', subCategoria: '', prioridade: 0 });
+    } catch {
+      // Erro já tratado no hook com mensagem amigável.
+    }
   }
 
   async function handleAtualizar(id: number) {
-    await atualizar(id, editData);
-    setEditandoId(null);
-    setEditData({});
+    try {
+      await atualizar(id, editData);
+      setEditandoId(null);
+      setEditData({});
+    } catch {
+      // Mantém edição aberta para o usuário ajustar os campos inválidos.
+    }
   }
 
   function iniciarEdicao(regra: Regra) {
@@ -74,6 +82,7 @@ export function PainelRegras() {
           </button>
         </div>
         {erro && <p className="text-red-600 text-xs mt-2">{erro}</p>}
+        {!erro && erroApi && <p className="text-red-600 text-xs mt-2">{erroApi}</p>}
       </div>
 
       {/* Tabela de regras */}

@@ -83,7 +83,13 @@ describe('Transacoes controller', () => {
       .send({});
 
     expect(res.status).toBe(400);
-    expect(res.body.erro).toBe('Informe ao menos um campo para atualização.');
+    expect(res.body).toMatchObject({
+      erro: 'Payload inválido.',
+      codigo: 'VALIDATION_ERROR',
+    });
+    expect(res.body.detalhes).toEqual([
+      { campo: 'payload', mensagem: 'Informe ao menos um campo para atualização.' },
+    ]);
     expect(prismaMock.transacao.update).not.toHaveBeenCalled();
   });
 
@@ -95,7 +101,29 @@ describe('Transacoes controller', () => {
       .send({ classificacao: 'OUTRO' });
 
     expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      erro: 'Payload inválido.',
+      codigo: 'VALIDATION_ERROR',
+    });
+    expect(res.body.detalhes).toEqual([
+      { campo: 'classificacao', mensagem: 'Invalid option: expected one of "PESSOAL"|"EMPRESA"|"INDEFINIDO"' },
+    ]);
     expect(prismaMock.transacao.update).not.toHaveBeenCalled();
+  });
+
+  it('retorna 400 com detalhe de campo para id invalido no PATCH', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .patch('/api/transacoes/id-invalido')
+      .send({ classificacao: 'PESSOAL' });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      erro: 'Parâmetros inválidos.',
+      codigo: 'VALIDATION_ERROR',
+      detalhes: [{ campo: 'id', mensagem: 'ID inválido.' }],
+    });
   });
 
   it('retorna 404 quando PATCH recebe id inexistente', async () => {

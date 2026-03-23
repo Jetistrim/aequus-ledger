@@ -19,7 +19,8 @@ export type TransacaoEnriquecida<T extends TransacaoBase> = T & {
  * Adiciona campos computados de PIX a cada transação retornada pela API.
  * Deve ser chamado em todo endpoint que devolve transações (upload, listagem, relatórios).
  *
- *  - pixAutoClassificado: PIX que já foi classificado automaticamente — flag para revisão visual
+ *  - pixAutoClassificado: PIX que já foi classificado automaticamente — metadado técnico,
+ *    sem representar pendência manual de revisão na interface
  *  - sugestaoClassificacao + labelHeuristica: sugestão heurística apenas para PIX INDEFINIDO
  */
 export function enrichTransacoes<T extends TransacaoBase>(

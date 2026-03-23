@@ -14,9 +14,18 @@ export interface Transacao {
   codigoReferencia?: string | null;
   identificador: string;
   arquivoOrigem?: string;
-  // Campos computados dinamicamente pela API (não persistidos)
+  /**
+   * Campo computado pela API para sinalização técnica de PIX classificado.
+   * Não representa revisão manual pendente na UI.
+   */
   pixAutoClassificado?: boolean;
+  /**
+   * Sugestão heurística disponível apenas para alguns PIX ainda indefinidos.
+   */
   sugestaoClassificacao?: 'PESSOAL' | 'EMPRESA' | null;
+  /**
+   * Texto auxiliar explicando a heurística aplicada à sugestão de classificação.
+   */
   labelHeuristica?: string | null;
 }
 

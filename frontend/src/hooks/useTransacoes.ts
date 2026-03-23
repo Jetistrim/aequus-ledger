@@ -2,6 +2,9 @@ import { useState, useCallback } from 'react';
 import { Transacao, Classificacao, PaginacaoTransacoes, TotaisTransacoes } from '../types';
 import * as api from '../services/api';
 
+/**
+ * Centraliza a listagem e as atualizações locais de transações na tela de conciliação.
+ */
 export function useTransacoes() {
   const [transacoes, setTransacoes] = useState<Transacao[]>([]);
   const [paginacao, setPaginacao] = useState<PaginacaoTransacoes>({
@@ -51,9 +54,12 @@ export function useTransacoes() {
     }
   }, []);
 
-  const atualizarIdentificador = useCallback(async (id: string, identificador: string, categoriaGenerica: string | null) => {
+  /**
+   * Persiste uma edição completa da linha usando o PATCH parcial já exposto pelo backend.
+   */
+  const atualizarTransacao = useCallback(async (id: string, payload: api.AtualizacaoTransacaoPayload) => {
     try {
-      const atualizada = await api.atualizarTransacao(id, { identificador, categoriaGenerica });
+      const atualizada = await api.atualizarTransacao(id, payload);
       setTransacoes((prev) =>
         prev.map((t) => (t.id === id ? atualizada : t))
       );
@@ -74,6 +80,6 @@ export function useTransacoes() {
     carregar,
     definirTransacoes,
     classificar,
-    atualizarIdentificador,
+    atualizarTransacao,
   };
 }

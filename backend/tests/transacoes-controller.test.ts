@@ -75,6 +75,42 @@ describe('Transacoes controller', () => {
     });
   });
 
+  it('atualiza transacao com payload combinado incluindo categoria e indefinido', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .patch('/api/transacoes/8f255f8e-8a96-47e2-bf2d-a8c0ec062f38')
+      .send({
+        classificacao: 'INDEFINIDO',
+        identificador: 'Revisar depois',
+        categoriaGenerica: 'Transferencia',
+      });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.transacao.update).toHaveBeenCalledWith({
+      where: { id: '8f255f8e-8a96-47e2-bf2d-a8c0ec062f38' },
+      data: {
+        classificacao: 'INDEFINIDO',
+        identificador: 'Revisar depois',
+        categoriaGenerica: 'Transferencia',
+      },
+    });
+  });
+
+  it('atualiza transacao permitindo categoriaGenerica nula', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .patch('/api/transacoes/8f255f8e-8a96-47e2-bf2d-a8c0ec062f38')
+      .send({ categoriaGenerica: null });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.transacao.update).toHaveBeenCalledWith({
+      where: { id: '8f255f8e-8a96-47e2-bf2d-a8c0ec062f38' },
+      data: { categoriaGenerica: null },
+    });
+  });
+
   it('retorna 400 para payload vazio no PATCH', async () => {
     const app = createApp();
 

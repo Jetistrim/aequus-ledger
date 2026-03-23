@@ -1,19 +1,15 @@
 import { useState } from 'react';
 import { Transacao, Classificacao } from '../types';
+import { AtualizacaoTransacaoPayload } from '../services/api';
 import { ModalEdicao } from './ModalEdicao';
 import { TooltipTexto } from './TooltipTexto';
+import { getLinhaClassName, shouldShowReviewTag } from './conciliacaoVisualState';
 
 interface Props {
   transacoes: Transacao[];
   onClassificar: (id: string, classificacao: Classificacao) => Promise<void>;
-  onAtualizarIdentificador: (id: string, identificador: string, categoriaGenerica: string | null) => Promise<void>;
+  onAtualizarTransacao: (id: string, payload: AtualizacaoTransacaoPayload) => Promise<void>;
 }
-
-const corLinha: Record<Classificacao, string> = {
-  PESSOAL: 'bg-green-50 border-l-4 border-green-400',
-  EMPRESA: 'bg-blue-50 border-l-4 border-blue-400',
-  INDEFINIDO: 'bg-red-50 border-l-4 border-red-400',
-};
 
 const badgeClassificacao: Record<Classificacao, string> = {
   PESSOAL: 'bg-green-100 text-green-800',
@@ -25,7 +21,10 @@ function contemIndicadorPix(descricao: string): boolean {
   return /\bPIX\b/i.test(descricao) || /\bQR\s*CODE\b/i.test(descricao);
 }
 
-export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarIdentificador }: Props) {
+/**
+ * Tabela principal de conciliação com atalhos de classificação e edição completa por modal.
+ */
+export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarTransacao }: Props) {
   const [transacaoEditando, setTransacaoEditando] = useState<Transacao | null>(null);
 
   if (transacoes.length === 0) {
@@ -57,26 +56,13 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarIdenti
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
             {transacoes.map((t) => {
-              // State A: PIX já classificado automaticamente — sinalizar para revisão suave
-              const pixAutoClassificado = t.pixAutoClassificado === true;
-              // State B/C: PIX ainda indefinido
+              const emRevisao = shouldShowReviewTag(t);
               const pixIndefinido = t.classificacao === 'INDEFINIDO' && contemIndicadorPix(t.descricao);
-
-              let classeLinha: string;
-              if (pixAutoClassificado) {
-                // Fundo normal (verde/azul) mas borda amarela suave indicando revisão
-                const fundoNormal = t.classificacao === 'PESSOAL' ? 'bg-green-50' : 'bg-blue-50';
-                classeLinha = `${fundoNormal} border-l-4 border-yellow-300`;
-              } else if (pixIndefinido) {
-                classeLinha = 'bg-yellow-50 border-l-4 border-yellow-400';
-              } else {
-                classeLinha = corLinha[t.classificacao];
-              }
 
               return (
                 <tr
                   key={t.id}
-                  className={`${classeLinha} cursor-pointer hover:brightness-95 transition-all`}
+                  className={`${getLinhaClassName(t)} cursor-pointer hover:brightness-95 transition-all`}
                   onDoubleClick={() => setTransacaoEditando(t)}
                 >
                 <td className="px-4 py-3 whitespace-nowrap text-gray-700">
@@ -98,13 +84,11 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarIdenti
                   <span className={`text-xs px-2 py-1 rounded-full font-medium ${badgeClassificacao[t.classificacao]}`}>
                     {t.classificacao}
                   </span>
-                  {/* State A: badge "Em revisão" para PIX auto-classificado */}
-                  {pixAutoClassificado && (
-                    <span className="ml-2 text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
-                      🔁 Em revisão
+                  {emRevisao && (
+                    <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-700">
+                      Em revisão
                     </span>
                   )}
-                  {/* State B/C: badge PIX para indefinidos */}
                   {pixIndefinido && (
                     <div className="mt-1">
                       <span className="text-xs px-2 py-1 rounded-full font-medium bg-yellow-100 text-yellow-800">
@@ -155,7 +139,7 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarIdenti
                     <button
                       onClick={(e) => { e.stopPropagation(); setTransacaoEditando(t); }}
                       className="text-gray-400 hover:text-gray-600 transition-colors"
-                      title="Editar identificador"
+                      title="Editar transação"
                     >
                       ✏️
                     </button>
@@ -172,7 +156,7 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarIdenti
         <ModalEdicao
           transacao={transacaoEditando}
           onFechar={() => setTransacaoEditando(null)}
-          onSalvar={onAtualizarIdentificador}
+          onSalvar={onAtualizarTransacao}
         />
       )}
     </>

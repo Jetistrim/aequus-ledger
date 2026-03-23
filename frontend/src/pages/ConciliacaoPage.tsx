@@ -77,7 +77,7 @@ export function ConciliacaoPage() {
   const timeoutFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { transacoes, paginacao, totais, carregando, erro, carregar, classificar, atualizarIdentificador } = useTransacoes();
+  const { transacoes, paginacao, totais, carregando, erro, carregar, classificar, atualizarTransacao } = useTransacoes();
   const mostrandoFallbackInicial = Boolean(erro)
     && transacoes.length === 0
     && paginacao.totalRegistros === 0
@@ -375,8 +375,8 @@ export function ConciliacaoPage() {
                 busca: buscaNormalizada.length > 0 ? buscaNormalizada : undefined,
               });
             }}
-            onAtualizarIdentificador={async (id, identificador, categoriaGenerica) => {
-              await atualizarIdentificador(id, identificador, categoriaGenerica);
+            onAtualizarTransacao={async (id, payload) => {
+              await atualizarTransacao(id, payload);
               const classificacaoConsulta = obterClassificacaoConsulta(filtro, filtroClassificacao);
               const tipo = filtroTipo === 'TODOS' ? undefined : filtroTipo;
               const buscaNormalizada = busca.trim();

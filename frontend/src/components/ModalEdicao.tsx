@@ -1,35 +1,48 @@
 import { useState } from 'react';
 import { Transacao } from '../types';
-import { ApiRequestError } from '../services/api';
+import { ApiRequestError, AtualizacaoTransacaoPayload } from '../services/api';
 
 interface Props {
   transacao: Transacao;
   onFechar: () => void;
-  onSalvar: (id: string, identificador: string, categoriaGenerica: string | null) => Promise<void>;
+  onSalvar: (id: string, payload: AtualizacaoTransacaoPayload) => Promise<void>;
 }
 
+/**
+ * Modal de edição completa da linha, incluindo reclassificação manual.
+ */
 export function ModalEdicao({ transacao, onFechar, onSalvar }: Props) {
+  const [classificacao, setClassificacao] = useState(transacao.classificacao);
   const [identificador, setIdentificador] = useState(transacao.identificador || '');
   const [categoriaGenerica, setCategoriaGenerica] = useState(transacao.categoriaGenerica || '');
   const [salvando, setSalvando] = useState(false);
   const [erroGeral, setErroGeral] = useState<string | null>(null);
+  const [erroClassificacao, setErroClassificacao] = useState<string | null>(null);
   const [erroIdentificador, setErroIdentificador] = useState<string | null>(null);
   const [erroCategoria, setErroCategoria] = useState<string | null>(null);
 
   async function handleSalvar() {
     setSalvando(true);
     setErroGeral(null);
+    setErroClassificacao(null);
     setErroIdentificador(null);
     setErroCategoria(null);
 
     try {
-      await onSalvar(transacao.id, identificador, categoriaGenerica || null);
+      await onSalvar(transacao.id, {
+        classificacao,
+        identificador,
+        categoriaGenerica: categoriaGenerica || null,
+      });
       onFechar();
     } catch (err) {
       if (err instanceof ApiRequestError) {
         setErroGeral(err.message);
 
         for (const detalhe of err.details) {
+          if (detalhe.campo === 'classificacao') {
+            setErroClassificacao(detalhe.mensagem);
+          }
           if (detalhe.campo === 'identificador') {
             setErroIdentificador(detalhe.mensagem);
           }
@@ -70,6 +83,20 @@ export function ModalEdicao({ transacao, onFechar, onSalvar }: Props) {
         </div>
 
         <div className="mb-4">
+          <label className="block text-sm text-gray-500 mb-1">Classificação</label>
+          <select
+            value={classificacao}
+            onChange={(e) => setClassificacao(e.target.value as Transacao['classificacao'])}
+            className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="PESSOAL">Pessoal</option>
+            <option value="EMPRESA">Empresa</option>
+            <option value="INDEFINIDO">Indefinido</option>
+          </select>
+          {erroClassificacao && <p className="mt-1 text-xs text-red-600">{erroClassificacao}</p>}
+        </div>
+
+        <div className="mb-4">
           <label className="block text-sm text-gray-500 mb-1">Tipo de despesa</label>
           <input
             type="text"
@@ -77,7 +104,7 @@ export function ModalEdicao({ transacao, onFechar, onSalvar }: Props) {
             onChange={(e) => setCategoriaGenerica(e.target.value)}
             className="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             placeholder="Ex: Alimentação, Transporte, Imposto..."
-            maxLength={100}
+            maxLength={120}
           />
           {erroCategoria && <p className="mt-1 text-xs text-red-600">{erroCategoria}</p>}
         </div>

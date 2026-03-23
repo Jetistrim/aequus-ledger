@@ -99,6 +99,15 @@ export interface ListarTransacoesParams {
   busca?: string;
 }
 
+/**
+ * Payload aceito pela API para atualização parcial de uma transação.
+ */
+export interface AtualizacaoTransacaoPayload {
+  classificacao?: Classificacao;
+  identificador?: string;
+  categoriaGenerica?: string | null;
+}
+
 export async function listarTransacoes(params?: ListarTransacoesParams): Promise<RespostaListagemTransacoes> {
   const { data } = await api.get<RespostaListagemTransacoes>('/transacoes', { params });
   return data;
@@ -106,7 +115,7 @@ export async function listarTransacoes(params?: ListarTransacoesParams): Promise
 
 export async function atualizarTransacao(
   id: string,
-  payload: { classificacao?: Classificacao; identificador?: string; categoriaGenerica?: string | null }
+  payload: AtualizacaoTransacaoPayload
 ): Promise<Transacao> {
   const { data } = await api.patch<Transacao>(`/transacoes/${id}`, payload);
   return data;

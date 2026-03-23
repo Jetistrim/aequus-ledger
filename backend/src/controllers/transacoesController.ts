@@ -145,6 +145,10 @@ export async function listarTransacoes(req: Request, res: Response, next: NextFu
   }
 }
 
+/**
+ * Atualiza parcialmente uma transação, permitindo combinar classificação,
+ * identificador e categoria genérica no mesmo PATCH.
+ */
 export async function atualizarTransacao(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const parsedParams = idParamSchema.safeParse(req.params);

@@ -2,6 +2,50 @@ import { prisma } from '../src/lib/prisma';
 
 async function main() {
   const regras = [
+    // ── REGRAS DIRECIONADAS (top recorrências do diagnóstico PIX) ────────────────
+
+    // Seu pagamento e testes
+    { palavraChave: 'Paulo Gabriel Lima de Sou', categoria: 'EMPRESA' as const, subCategoria: 'Folha de Pagamento', prioridade: 1 },
+
+    // Clínica e titular
+    { palavraChave: 'Instituto Alexia Clinic', categoria: 'EMPRESA' as const, subCategoria: 'Receita', prioridade: 1 },
+    { palavraChave: 'ALEXSANDRA FERREIRA LIMA DE SOUSA', categoria: 'EMPRESA' as const, subCategoria: 'Receita', prioridade: 1 },
+
+    // Fornecedores e pagamentos
+    { palavraChave: '99 TECNOLOGIA LTDA', categoria: 'PESSOAL' as const, subCategoria: 'Transporte', prioridade: 1 },
+    { palavraChave: 'Nu Pagamentos S A', categoria: 'EMPRESA' as const, subCategoria: 'Gateway', prioridade: 1 },
+    { palavraChave: 'Banco Santander Brasil S', categoria: 'EMPRESA' as const, subCategoria: 'Banco', prioridade: 1 },
+    { palavraChave: 'FACEBOOK SERVICOS ONLINE', categoria: 'EMPRESA' as const, subCategoria: 'Marketing', prioridade: 1 },
+    { palavraChave: 'QUANTITY SERVICOS E COMERCIO DE PRODUTOS PARA SAUD', categoria: 'EMPRESA' as const, subCategoria: 'Fornecedor', prioridade: 1 },
+    { palavraChave: 'PAGAMENTO DE BOLETO OUTROS BANCOS NU PAGAMENTOS SA', categoria: 'EMPRESA' as const, subCategoria: 'Pagamento de Boleto', prioridade: 1 },
+
+    // Família
+    { palavraChave: 'Sophia Lima de Sousa', categoria: 'PESSOAL' as const, subCategoria: 'Transferência Pessoal', prioridade: 1 },
+    { palavraChave: 'Maria Eduarda De Lima Eva', categoria: 'PESSOAL' as const, subCategoria: 'Transferência Pessoal', prioridade: 1 },
+    { palavraChave: 'Raquel Vitoria Lima da Si', categoria: 'PESSOAL' as const, subCategoria: 'Transferência Pessoal', prioridade: 1 },
+
+    // Outros importantes
+    { palavraChave: 'MINISTERIO DA FAZENDA', categoria: 'EMPRESA' as const, subCategoria: 'Imposto', prioridade: 1 },
+    { palavraChave: 'REMUNERACAO APLICACAO AUTOMATICA', categoria: 'EMPRESA' as const, subCategoria: 'Receita', prioridade: 2 },
+    { palavraChave: 'PIX DEVOLVIDO 99 TECNOLOGIA LTDA', categoria: 'EMPRESA' as const, subCategoria: 'Estorno', prioridade: 1 },
+
+    // ── NÃO-PIX RESIDUAL (encargos/cartão/fornecedores) ───────────────────────
+
+    // Encargos bancários recorrentes
+    { palavraChave: 'JUROS,JUROS DE MORA,JUROS SALDO UTILIZ', categoria: 'EMPRESA' as const, subCategoria: 'Encargos Financeiros', prioridade: 1 },
+    { palavraChave: 'MULTA MORATORIA', categoria: 'EMPRESA' as const, subCategoria: 'Encargos Financeiros', prioridade: 1 },
+    { palavraChave: 'IOF ADICIONAL,IOF', categoria: 'EMPRESA' as const, subCategoria: 'Encargos Financeiros', prioridade: 1 },
+
+    // Cartão e pagamentos bancários
+    { palavraChave: 'PAGAMENTO CARTAO CREDITO,CARTAO CREDITO BCE', categoria: 'EMPRESA' as const, subCategoria: 'Cartão', prioridade: 1 },
+    { palavraChave: 'PJBANK PAGAMENTOS', categoria: 'EMPRESA' as const, subCategoria: 'Gateway', prioridade: 1 },
+
+    // Fornecedores operacionais
+    { palavraChave: 'GRADUATI INTEGRACAO DE ESTAGIOS', categoria: 'EMPRESA' as const, subCategoria: 'Serviço Profissional', prioridade: 1 },
+
+    // Comerciantes pessoais recorrentes no débito
+    { palavraChave: 'BEBELU,HIPERSENNA,RIO GRANDE', categoria: 'PESSOAL' as const, subCategoria: 'Alimentação', prioridade: 1 },
+
     // ── PESSOAL — Prioridade 1 (termos específicos e confiáveis) ────────────────
 
     // Transporte por app

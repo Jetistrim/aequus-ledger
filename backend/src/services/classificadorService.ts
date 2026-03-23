@@ -1,6 +1,7 @@
 import { Categoria } from '@prisma/client';
 import { normalizeForMatching } from '../utils/normalization';
-import { sugerirPorHeuristica } from './heuristicaPixService';
+import { classificarPixComHeuristica } from './heuristicaPixService';
+import { classificarNaoPixComHeuristica } from './heuristicaNaoPixService';
 
 export interface Regra {
   palavraChave: string;
@@ -17,6 +18,11 @@ export interface ResultadoClassificacao {
   sugestaoClassificacao: 'PESSOAL' | 'EMPRESA' | null;
 }
 
+/**
+ * Retorna true quando a descricao contem o token PIX como palavra isolada.
+ *
+ * A normalizacao preserva stopwords bancarias para nao remover o proprio token PIX.
+ */
 export function contemPix(descricao: string): boolean {
   const descricaoSemStopwords = normalizeForMatching(descricao, { removerStopwordsBancarias: false });
   return /\bPIX\b/.test(descricaoSemStopwords);
@@ -39,18 +45,18 @@ function encontrarPrimeiraRegraCorrespondente(descricaoNormalizada: string, regr
 }
 
 /**
- * Aplica as regras de classificação a uma descrição de transação.
- * Regras com menor número de prioridade são aplicadas primeiro.
- *
- * Para transações com indicador PIX:
- *   - Se houver regra correspondente → classifica normalmente (PESSOAL/EMPRESA).
- *   - Se não houver regra → INDEFINIDO com sugestão heurística por valor/dia da semana.
+ * Classifica uma transacao no funil abaixo:
+ * 1) Regras explicitas (prioridade do banco)
+ * 2) Heuristica PIX (quando descricao contem PIX)
+ * 3) Heuristica NAO-PIX para debito/cartao
+ * 4) INDEFINIDO (fallback conservador)
  */
 export function classificar(
   descricao: string,
   regras: Regra[],
   dataTransacao?: Date,
   valorAbsoluto?: number,
+  tipoTransacao?: 'entrada' | 'saida',
 ): ResultadoClassificacao {
   const descNorm = normalizeForMatching(descricao, { removerStopwordsBancarias: true });
 
@@ -64,15 +70,32 @@ export function classificar(
     };
   }
 
-  // Sem regra: INDEFINIDO — aplica heurística quando for PIX e os dados de data/valor estiverem disponíveis
-  const heuristica =
-    contemPix(descricao) && dataTransacao != null && valorAbsoluto != null
-      ? sugerirPorHeuristica(dataTransacao, valorAbsoluto)
-      : { sugestao: null as null };
+  const direcao = tipoTransacao ?? 'saida';
+  const valor = valorAbsoluto ?? 0;
+
+  if (contemPix(descricao)) {
+    const heuristicaPix = classificarPixComHeuristica(descricao, valor, direcao);
+    if (heuristicaPix.classificacao !== 'INDEFINIDO') {
+      return {
+        classificacao: heuristicaPix.classificacao,
+        categoriaGenerica: null,
+        sugestaoClassificacao: null,
+      };
+    }
+  } else {
+    const heuristicaNaoPix = classificarNaoPixComHeuristica(descricao, valor, direcao);
+    if (heuristicaNaoPix.classificacao !== 'INDEFINIDO') {
+      return {
+        classificacao: heuristicaNaoPix.classificacao,
+        categoriaGenerica: null,
+        sugestaoClassificacao: null,
+      };
+    }
+  }
 
   return {
     classificacao: 'INDEFINIDO',
     categoriaGenerica: null,
-    sugestaoClassificacao: heuristica.sugestao,
+    sugestaoClassificacao: null,
   };
 }

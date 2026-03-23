@@ -41,6 +41,7 @@ async function criarTransacoesEmLote(
           regras,
           raw.dataTransacao,
           Math.abs(raw.valor),
+          tipo === 'ENTRADA' ? 'entrada' : 'saida',
         );
         const identificador = identificadoresPorArquivo[raw.arquivoOrigem] || '';
 

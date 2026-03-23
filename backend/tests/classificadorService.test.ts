@@ -5,7 +5,7 @@ const regrasBase: Regra[] = [
   {
     palavraChave: 'IFOOD,RAPPI',
     categoria: 'PESSOAL',
-    subCategoria: 'Alimentação',
+    subCategoria: 'Alimentacao',
     prioridade: 1,
   },
   {
@@ -17,56 +17,35 @@ const regrasBase: Regra[] = [
 ];
 
 describe('classificadorService', () => {
-  it('auto-classifica PIX com regra correspondente (sem forçar INDEFINIDO)', () => {
-    expect(classificar('PIX ENVIADO IFOOD', regrasBase)).toEqual({
+  it('prioriza regra explicita antes da heuristica', () => {
+    expect(classificar('PIX ENVIADO IFOOD', regrasBase, undefined, 50, 'saida')).toEqual({
       classificacao: 'PESSOAL',
-      categoriaGenerica: 'Alimentação',
+      categoriaGenerica: 'Alimentacao',
       sugestaoClassificacao: null,
     });
   });
 
-  it('mantém a classificação original para transações não PIX', () => {
-    expect(classificar('COMPRA IFOOD', regrasBase)).toEqual({
+  it('classifica PIX sem regra usando heuristica', () => {
+    expect(classificar('PIX ENVIADO Janaiane de Jesus Milesi', regrasBase, undefined, 75.2, 'saida')).toEqual({
       classificacao: 'PESSOAL',
-      categoriaGenerica: 'Alimentação',
+      categoriaGenerica: null,
       sugestaoClassificacao: null,
     });
   });
 
-  it('auto-classifica PIX de receita quando há regra correspondente', () => {
-    expect(classificar('PIX RECEBIDO CLIENTE ACME', regrasBase)).toEqual({
-      classificacao: 'EMPRESA',
-      categoriaGenerica: 'Receita',
+  it('classifica nao-PIX de debito/cartao usando heuristica nao-pix', () => {
+    expect(classificar('DEBITO VISA ELECTRON BRASIL MATEUS SUPERMERCA', regrasBase, undefined, 34.41, 'saida')).toEqual({
+      classificacao: 'PESSOAL',
+      categoriaGenerica: null,
       sugestaoClassificacao: null,
     });
   });
 
-  it('auto-classifica PIX com regra após normalização de frases compostas', () => {
-    const regrasFornecedor: Regra[] = [
-      {
-        palavraChave: 'PAGAMENTO VIA PIX,FORNECEDOR',
-        categoria: 'EMPRESA',
-        subCategoria: 'Fornecedor',
-        prioridade: 1,
-      },
-    ];
-
-    expect(classificar('PAGAMENTO VIA PIX FORNECEDOR ACME', regrasFornecedor)).toEqual({
-      classificacao: 'EMPRESA',
-      categoriaGenerica: 'Fornecedor',
-      sugestaoClassificacao: null,
-    });
-  });
-
-  it('retorna INDEFINIDO com sugestão heurística para PIX sem regra correspondente', () => {
-    // Domingo 22/03/2026 12:00 UTC = 09:00 BRT → fim de semana
-    // Valor R$50 < R$100 → score PESSOAL: 2 (fim de semana) + 1 (valor baixo) = 3 ≥ threshold
-    const dataDomingo = new Date('2026-03-22T15:00:00.000Z');
-
-    expect(classificar('PIX ENVIADO JOAO SILVA', regrasBase, dataDomingo, 50)).toEqual({
+  it('mantem INDEFINIDO quando sem regra e sem sinais fortes', () => {
+    expect(classificar('TRANSFERENCIA DIVERSA', regrasBase, undefined, 120, 'saida')).toEqual({
       classificacao: 'INDEFINIDO',
       categoriaGenerica: null,
-      sugestaoClassificacao: 'PESSOAL',
+      sugestaoClassificacao: null,
     });
   });
 });

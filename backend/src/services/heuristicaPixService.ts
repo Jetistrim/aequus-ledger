@@ -1,74 +1,157 @@
+import { normalizeForMatching } from '../utils/normalization';
+import { DirecaoTransacao, ResultadoHeuristica } from './heuristicaCommon';
+
 export interface SugestaoHeuristica {
   sugestao: 'PESSOAL' | 'EMPRESA' | null;
   label: string | null;
 }
 
-/**
- * Retorna o número do dia da semana no fuso horário America/Sao_Paulo.
- * 0 = domingo, 6 = sábado — equivalente a Date.getDay() mas em horário local BRT/BRST.
- *
- * Usar Intl evita o erro de getUTCDay() onde um PIX feito na sexta às 22h BRT (01h UTC sábado)
- * seria incorretamente classificado como fim de semana.
- */
-function diaSemanaLocal(data: Date): number {
-  const weekdayMap: Record<string, number> = {
-    Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
-  };
-  const abrev = new Intl.DateTimeFormat('en-US', {
-    weekday: 'short',
-    timeZone: 'America/Sao_Paulo',
-  }).format(data);
-  return weekdayMap[abrev] ?? data.getUTCDay();
+const CONECTIVOS_NOME = new Set(['DE', 'DA', 'DO', 'DOS', 'DAS', 'E']);
+const TOKENS_OPERACIONAIS_PF = new Set(['PIX', 'ENVIADO', 'RECEBIDO', 'DEVOLVIDO', 'TRANSFERENCIA', 'TRANSF', 'PAGAMENTO']);
+
+const TOKENS_EMPRESA_BASE = [
+  'LTDA',
+  'S A',
+  'S.A',
+  'S/A',
+  'ME',
+  'EIRELI',
+  'SERVICOS',
+  'COMERCIO',
+  'INSTITUTO',
+  'TECNOLOGIA',
+  'PAGAMENTOS',
+  'BANCO',
+  'NU PAGAMENTOS',
+];
+
+const TOKENS_EMPRESA_NICHO = [
+  'CLINICA',
+  'ESTETICA',
+  'SAUDE',
+  'DISTRIBUIDORA',
+  'ODONTOLOGICOS',
+  'HOSPITALA',
+  'ASSESSORIA',
+  'FARMA',
+  'SERVICOS ONLINE',
+  'FACEBOOK',
+  'META',
+  'QUANTITY',
+  'ALEXIA',
+];
+
+const TOKENS_PESSOAL_DIRETO = ['99 TECNOLOGIA', 'UBER'];
+const TOKENS_EMPRESA_DIRETO = ['NU PAGAMENTOS', 'SANTANDER', 'BOLETO'];
+
+function contemAlgumToken(descricao: string, tokens: string[]): boolean {
+  return tokens.some((token) => descricao.includes(token));
 }
 
 /**
- * Aplica heurística de valor e dia da semana para sugerir uma classificação
- * para transações PIX sem regra correspondente.
+ * Detecta se a descricao se parece com nome de pessoa fisica.
  *
- * A sugestão só é retornada quando o score vencedor for >= 2, evitando sinais fracos.
- *
- * Sinais:
- *   - Fim de semana (BRT): PESSOAL +2  "Fim de semana"
- *   - Valor < R$100:       PESSOAL +1  "Valor baixo"
- *   - Valor >= R$500 e arredondado (múltiplo de 100): EMPRESA +2  "Valor alto arredondado"
- *   - Dia útil (seg-sex):  EMPRESA +1  "Dia útil"  (desempate fraco)
+ * Remove conectivos e termos operacionais (PIX/ENVIADO/RECEBIDO etc.)
+ * e exige pelo menos dois tokens alfabeticos restantes.
  */
-export function sugerirPorHeuristica(dataTransacao: Date, valorAbsoluto: number): SugestaoHeuristica {
-  let pessoalScore = 0;
-  let empresaScore = 0;
-  const pessoalLabels: string[] = [];
-  const empresaLabels: string[] = [];
+function pareceNomePessoaFisica(descricaoNormalizada: string): boolean {
+  const tokens = descricaoNormalizada
+    .split(' ')
+    .map((t) => t.trim())
+    .filter(Boolean)
+    .filter((token) => !CONECTIVOS_NOME.has(token))
+    .filter((token) => !TOKENS_OPERACIONAIS_PF.has(token))
+    .filter((token) => /^[A-Z]+$/.test(token));
 
-  const diaSemana = diaSemanaLocal(dataTransacao);
-  const fimDeSemana = diaSemana === 0 || diaSemana === 6;
+  return tokens.length >= 2;
+}
 
-  if (fimDeSemana) {
-    pessoalScore += 2;
-    pessoalLabels.push('Fim de semana');
-  } else {
-    empresaScore += 1;
-    empresaLabels.push('Dia útil');
+/**
+ * Aplica heuristica de classificacao para transacoes PIX sem regra explicita.
+ *
+ * Ordem de sinais:
+ * 1. Tokens fortes de pessoal/empresa por contraparte
+ * 2. Tokens corporativos (gerais + nicho clinica/estetica)
+ * 3. Sinal de nome PF combinado com direção da transação
+ * 4. Desempate por faixa/formato de valor
+ *
+ * Em caso de empate ou score fraco, retorna INDEFINIDO para evitar falso positivo.
+ */
+export function classificarPixComHeuristica(
+  descricaoOriginal: string,
+  valor: number,
+  tipo: DirecaoTransacao,
+): ResultadoHeuristica {
+  const descricao = normalizeForMatching(descricaoOriginal, { removerStopwordsBancarias: false });
+
+  let pontosEmpresa = 0;
+  let pontosPessoal = 0;
+
+  const temTokenEmpresaBase = contemAlgumToken(descricao, TOKENS_EMPRESA_BASE);
+  const temTokenEmpresaNicho = contemAlgumToken(descricao, TOKENS_EMPRESA_NICHO);
+
+  if (tipo === 'saida' && contemAlgumToken(descricao, TOKENS_PESSOAL_DIRETO)) {
+    pontosPessoal += 3;
   }
 
-  if (valorAbsoluto < 100) {
-    pessoalScore += 1;
-    pessoalLabels.push('Valor baixo');
+  if (tipo === 'saida' && contemAlgumToken(descricao, TOKENS_EMPRESA_DIRETO)) {
+    pontosEmpresa += 3;
   }
 
-  if (valorAbsoluto >= 500 && valorAbsoluto % 100 === 0) {
-    empresaScore += 2;
-    empresaLabels.push('Valor alto arredondado');
+  if (temTokenEmpresaBase) {
+    pontosEmpresa += 3;
   }
 
-  const THRESHOLD = 2;
-
-  if (pessoalScore >= THRESHOLD && pessoalScore > empresaScore) {
-    return { sugestao: 'PESSOAL', label: pessoalLabels.join(', ') };
+  if (temTokenEmpresaNicho) {
+    pontosEmpresa += 2;
   }
 
-  if (empresaScore >= THRESHOLD && empresaScore > pessoalScore) {
-    return { sugestao: 'EMPRESA', label: empresaLabels.join(', ') };
+  const nomePessoaFisica = !temTokenEmpresaBase && !temTokenEmpresaNicho && pareceNomePessoaFisica(descricao);
+  if (nomePessoaFisica) {
+    if (tipo === 'saida') {
+      pontosPessoal += 2;
+    }
+    if (tipo === 'entrada') {
+      pontosEmpresa += 3;
+    }
   }
 
-  return { sugestao: null, label: null };
+  if (valor < 50) {
+    pontosPessoal += 2;
+  } else if (valor < 100) {
+    pontosPessoal += 1;
+  }
+
+  if (valor > 500 && (valor % 100 === 0 || valor % 500 === 0)) {
+    pontosEmpresa += 2;
+  }
+
+  const valorQuebrado = Math.round(valor * 100) % 100 !== 0;
+  if (valorQuebrado) {
+    pontosPessoal += 1;
+  }
+
+  if (pontosEmpresa > pontosPessoal + 1) {
+    return { classificacao: 'EMPRESA', confianca: Math.min(10, pontosEmpresa) };
+  }
+
+  if (pontosPessoal > pontosEmpresa + 1) {
+    return { classificacao: 'PESSOAL', confianca: Math.min(10, pontosPessoal) };
+  }
+
+  return { classificacao: 'INDEFINIDO', confianca: 0 };
+}
+
+/**
+ * Compatibilidade para chamadas legadas.
+ *
+ * Mantem a assinatura antiga para evitar quebra de importacoes. O parametro de data
+ * nao e usado pela heuristica atual.
+ */
+export function sugerirPorHeuristica(_: Date, valorAbsoluto: number): SugestaoHeuristica {
+  const resultado = classificarPixComHeuristica('PIX', valorAbsoluto, 'saida');
+  if (resultado.classificacao === 'INDEFINIDO') {
+    return { sugestao: null, label: null };
+  }
+  return { sugestao: resultado.classificacao, label: `Confianca ${resultado.confianca}` };
 }

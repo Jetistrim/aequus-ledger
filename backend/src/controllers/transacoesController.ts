@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Classificacao, Prisma, Tipo } from '@prisma/client';
 import { z } from 'zod';
-import { prisma, isSqlite } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { enrichTransacoes } from '../utils/responseHelpers';
 
 const classificacaoSchema = z.enum(['PESSOAL', 'EMPRESA', 'INDEFINIDO']);
@@ -87,16 +87,8 @@ export async function listarTransacoes(req: Request, res: Response, next: NextFu
       where.tipo = tipo;
     }
     if (busca) {
-      // mode 'insensitive' só é suportado pelo PostgreSQL, não pelo SQLite
-      const stringFilter = (value: string): Prisma.StringFilter =>
-        isSqlite
-          ? { contains: value }
-          : { contains: value, mode: 'insensitive' };
-
-      const nullableFilter = (value: string): Prisma.StringNullableFilter =>
-        isSqlite
-          ? { contains: value }
-          : { contains: value, mode: 'insensitive' };
+      const stringFilter = (value: string): Prisma.StringFilter => ({ contains: value });
+      const nullableFilter = (value: string): Prisma.StringNullableFilter => ({ contains: value });
 
       where.OR = [
         { descricao: stringFilter(busca) },

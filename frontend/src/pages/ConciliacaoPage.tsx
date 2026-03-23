@@ -78,6 +78,10 @@ export function ConciliacaoPage() {
   const timeoutHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { transacoes, paginacao, totais, carregando, erro, carregar, classificar, atualizarIdentificador } = useTransacoes();
+  const mostrandoFallbackInicial = Boolean(erro)
+    && transacoes.length === 0
+    && paginacao.totalRegistros === 0
+    && !tentouCarregarExistentes;
 
   useEffect(() => {
     return () => {
@@ -187,6 +191,18 @@ export function ConciliacaoPage() {
     }
   }, [paginacao.paginaAtual, paginaAtual]);
 
+  useEffect(() => {
+    if (!mostrandoFallbackInicial) {
+      return;
+    }
+
+    const timeoutId = setTimeout(() => {
+      void carregar({ pagina: 1, limite: itensPorPagina });
+    }, 2500);
+
+    return () => clearTimeout(timeoutId);
+  }, [mostrandoFallbackInicial, carregar, itensPorPagina]);
+
   const indiceInicio = paginacao.totalRegistros === 0
     ? 0
     : (paginacao.paginaAtual - 1) * paginacao.limite + 1;
@@ -215,6 +231,23 @@ export function ConciliacaoPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8">
+        {mostrandoFallbackInicial && (
+          <div className="mb-6 rounded-xl border border-blue-200 bg-blue-50 px-5 py-4 shadow-sm">
+            <div className="flex items-start gap-3">
+              <svg className="mt-0.5 h-5 w-5 animate-spin text-blue-600" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              </svg>
+              <div>
+                <p className="text-sm font-semibold text-blue-800">Aguardando sistema iniciar...</p>
+                <p className="mt-1 text-sm text-blue-700">
+                  Isso pode levar alguns segundos na primeira abertura. Vamos tentar novamente automaticamente.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="mb-6 rounded-xl border border-gray-200 bg-white px-5 py-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -231,7 +264,7 @@ export function ConciliacaoPage() {
               {carregando ? 'Carregando...' : 'Carregar dados existentes'}
             </button>
           </div>
-          {erro && <p className="mt-3 text-sm text-red-600">{erro}</p>}
+          {erro && !mostrandoFallbackInicial && <p className="mt-3 text-sm text-red-600">{erro}</p>}
           {tentouCarregarExistentes && !carregando && !erro && transacoes.length === 0 && (
             <p className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
               Nenhuma transação salva foi encontrada. Faça uma importação para começar.

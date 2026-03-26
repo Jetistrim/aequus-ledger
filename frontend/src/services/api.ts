@@ -1,5 +1,12 @@
 import axios from 'axios';
-import { Classificacao, Regra, RespostaListagemTransacoes, RespostaUpload, Transacao } from '../types';
+import {
+  Classificacao,
+  FormatoExportacao,
+  Regra,
+  RespostaListagemTransacoes,
+  RespostaUpload,
+  Transacao,
+} from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -153,7 +160,13 @@ export async function deletarRegra(id: number): Promise<void> {
   await api.delete(`/regras/${id}`);
 }
 
-export async function gerarExtratos(): Promise<{ pessoal: string; empresa: string }> {
-  const { data } = await api.post<{ pessoal: string; empresa: string }>('/export');
+export interface RespostaExportacao {
+  formato: FormatoExportacao;
+  pessoal: string;
+  empresa: string;
+}
+
+export async function gerarExtratos(formato: FormatoExportacao): Promise<RespostaExportacao> {
+  const { data } = await api.post<RespostaExportacao>('/export', { formato });
   return data;
 }

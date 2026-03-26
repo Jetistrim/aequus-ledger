@@ -61,6 +61,45 @@ beforeEach(() => {
 });
 
 describe('Transacoes controller', () => {
+  it('calcula totais com saldo liquido por classificacao considerando tipo', async () => {
+    prismaMock.transacao.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(2);
+    prismaMock.transacao.findMany.mockResolvedValueOnce([]);
+    prismaMock.transacao.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 1000 } })
+      .mockResolvedValueOnce({ _sum: { valor: 700 } })
+      .mockResolvedValueOnce({ _sum: { valor: 2500 } })
+      .mockResolvedValueOnce({ _sum: { valor: 1000 } });
+
+    const app = createApp();
+    const res = await request(app).get('/api/transacoes');
+
+    expect(res.status).toBe(200);
+    expect(res.body.totais).toEqual({
+      pessoal: 300,
+      empresa: 1500,
+      total: 1800,
+      indefinidos: 2,
+    });
+    expect(prismaMock.transacao.aggregate).toHaveBeenNthCalledWith(1, {
+      where: { classificacao: 'PESSOAL', tipo: 'ENTRADA' },
+      _sum: { valor: true },
+    });
+    expect(prismaMock.transacao.aggregate).toHaveBeenNthCalledWith(2, {
+      where: { classificacao: 'PESSOAL', tipo: 'SAIDA' },
+      _sum: { valor: true },
+    });
+    expect(prismaMock.transacao.aggregate).toHaveBeenNthCalledWith(3, {
+      where: { classificacao: 'EMPRESA', tipo: 'ENTRADA' },
+      _sum: { valor: true },
+    });
+    expect(prismaMock.transacao.aggregate).toHaveBeenNthCalledWith(4, {
+      where: { classificacao: 'EMPRESA', tipo: 'SAIDA' },
+      _sum: { valor: true },
+    });
+  });
+
   it('atualiza transacao com payload valido', async () => {
     const app = createApp();
 

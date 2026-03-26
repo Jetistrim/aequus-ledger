@@ -56,6 +56,10 @@ function responderErroValidacao(
   });
 }
 
+function calcularSaldoLiquido(totalEntradas: number, totalSaidas: number): number {
+  return totalEntradas - totalSaidas;
+}
+
 export async function listarTransacoes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const paginaQuery = Number(req.query.pagina ?? 1);
@@ -110,20 +114,33 @@ export async function listarTransacoes(req: Request, res: Response, next: NextFu
       take: limite,
     });
 
-    const [somaPessoal, somaEmpresa, totalIndefinidos] = await Promise.all([
+    const [somaPessoalEntradas, somaPessoalSaidas, somaEmpresaEntradas, somaEmpresaSaidas, totalIndefinidos] = await Promise.all([
       prisma.transacao.aggregate({
-        where: { classificacao: 'PESSOAL' },
+        where: { classificacao: 'PESSOAL', tipo: 'ENTRADA' },
         _sum: { valor: true },
       }),
       prisma.transacao.aggregate({
-        where: { classificacao: 'EMPRESA' },
+        where: { classificacao: 'PESSOAL', tipo: 'SAIDA' },
+        _sum: { valor: true },
+      }),
+      prisma.transacao.aggregate({
+        where: { classificacao: 'EMPRESA', tipo: 'ENTRADA' },
+        _sum: { valor: true },
+      }),
+      prisma.transacao.aggregate({
+        where: { classificacao: 'EMPRESA', tipo: 'SAIDA' },
         _sum: { valor: true },
       }),
       prisma.transacao.count({ where: { classificacao: 'INDEFINIDO' } }),
     ]);
 
-    const pessoal = Number(somaPessoal._sum.valor ?? 0);
-    const empresa = Number(somaEmpresa._sum.valor ?? 0);
+    const totalPessoalEntradas = Number(somaPessoalEntradas._sum.valor ?? 0);
+    const totalPessoalSaidas = Number(somaPessoalSaidas._sum.valor ?? 0);
+    const totalEmpresaEntradas = Number(somaEmpresaEntradas._sum.valor ?? 0);
+    const totalEmpresaSaidas = Number(somaEmpresaSaidas._sum.valor ?? 0);
+
+    const pessoal = calcularSaldoLiquido(totalPessoalEntradas, totalPessoalSaidas);
+    const empresa = calcularSaldoLiquido(totalEmpresaEntradas, totalEmpresaSaidas);
 
     res.json({
       dados: enrichTransacoes(transacoes),

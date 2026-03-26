@@ -1,6 +1,7 @@
 export type Classificacao = 'PESSOAL' | 'EMPRESA' | 'INDEFINIDO';
 export type Tipo = 'ENTRADA' | 'SAIDA';
 export type Categoria = 'PESSOAL' | 'EMPRESA';
+export type FormatoExportacao = 'csv' | 'xlsx';
 
 export interface Transacao {
   id: string;

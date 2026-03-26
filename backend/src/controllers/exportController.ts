@@ -1,13 +1,32 @@
 import { Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { gerarExtratos } from '../services/exportService';
+import { z } from 'zod';
+import { ExportFormat, gerarExtratos } from '../services/exportService';
 
-export async function exportarExtratos(_req: Request, res: Response, next: NextFunction): Promise<void> {
+const exportPayloadSchema = z.object({
+  formato: z.enum(['csv', 'xlsx']).optional(),
+});
+
+export async function exportarExtratos(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { pessoalPath, empresaPath } = await gerarExtratos();
+    const payload = exportPayloadSchema.safeParse(req.body ?? {});
+    if (!payload.success) {
+      res.status(400).json({
+        erro: 'Payload inválido.',
+        codigo: 'VALIDATION_ERROR',
+        detalhes: payload.error.issues.map((issue) => ({
+          campo: issue.path.join('.') || 'formato',
+          mensagem: issue.message,
+        })),
+      });
+      return;
+    }
 
-    // Envia os dois arquivos como links de download via JSON
+    const formato: ExportFormat = payload.data.formato ?? 'csv';
+    const { pessoalPath, empresaPath } = await gerarExtratos(formato);
+
     res.json({
+      formato,
       pessoal: `/api/export/download?file=${encodeURIComponent(path.basename(pessoalPath))}`,
       empresa: `/api/export/download?file=${encodeURIComponent(path.basename(empresaPath))}`,
     });

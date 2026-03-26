@@ -1,5 +1,15 @@
+/// <reference types="node" />
+
 import { test, expect } from '@playwright/test';
 import * as XLSX from 'xlsx';
+
+async function safeReadResponseBody(response: { text(): Promise<string> }): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return '[response body unavailable in Playwright context]';
+  }
+}
 
 function buildXlsBufferWithHeaderBeforeColumns(): Buffer {
   const rows = [
@@ -57,11 +67,10 @@ test('importa XLS com cabecalho anterior e valida erro apos 8 segundos', async (
   await page.getByRole('button', { name: /Processar\s+\d+\s+arquivo\(s\)/i }).click();
 
   const uploadResponse = await uploadResponsePromise;
+  const responseBody = await safeReadResponseBody(uploadResponse);
 
   // Regra solicitada: esperar 8s apos envio para iniciar validacao de erro.
   await page.waitForTimeout(8_000);
-
-  const responseBody = await uploadResponse.text();
   expect(
     uploadResponse.status(),
     `Upload retornou erro HTTP. Status: ${uploadResponse.status()} | Body: ${responseBody}`

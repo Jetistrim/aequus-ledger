@@ -1,3 +1,5 @@
+/// <reference types="node" />
+
 import { expect, Page } from '@playwright/test';
 import * as XLSX from 'xlsx';
 
@@ -10,6 +12,14 @@ export interface UploadFixture {
 export type UploadFileInput = UploadFixture | string;
 
 const VALIDACAO_422_APOS_UPLOAD_MS = 8_000;
+
+async function safeReadResponseBody(response: { text(): Promise<string> }): Promise<string> {
+  try {
+    return await response.text();
+  } catch {
+    return '[response body unavailable in Playwright context]';
+  }
+}
 
 export function buildCsvFixture(): UploadFixture {
   const csv = [
@@ -93,11 +103,10 @@ export async function uploadSingleFileAndAssert(page: Page, fixture: UploadFileI
   await page.getByRole('button', { name: /Processar\s+\d+\s+arquivo\(s\)/i }).click();
 
   const uploadResponse = await uploadResponsePromise;
+  const responseBody = await safeReadResponseBody(uploadResponse);
 
   // Rule: every import must wait 8s before checking if a 422-like failure appears.
   await page.waitForTimeout(VALIDACAO_422_APOS_UPLOAD_MS);
-
-  const responseBody = await uploadResponse.text();
 
   expect(
     uploadResponse.status(),

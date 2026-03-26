@@ -1,8 +1,12 @@
 import axios from 'axios';
 import {
+  AmostraManualDiagnostico,
   Classificacao,
   FormatoExportacao,
+  ModoTesteRegras,
   Regra,
+  RegraTemporariaTeste,
+  RespostaTesteRegras,
   RespostaListagemTransacoes,
   RespostaUpload,
   Transacao,
@@ -158,6 +162,25 @@ export async function atualizarRegra(
 
 export async function deletarRegra(id: number): Promise<void> {
   await api.delete(`/regras/${id}`);
+}
+
+/**
+ * Executa simulacao de classificacao para apoiar o ajuste fino de regras.
+ */
+export async function testarRegras(payload: {
+  modoRegras: ModoTesteRegras;
+  regrasTemporarias?: RegraTemporariaTeste[];
+  usarIndefinidasBanco?: boolean;
+  filtroClassificacaoBanco?: 'TODAS' | 'INDEFINIDO' | 'PESSOAL' | 'EMPRESA';
+  limiteAmostras?: number;
+  amostrasManuais?: AmostraManualDiagnostico[];
+}): Promise<RespostaTesteRegras> {
+  try {
+    const { data } = await api.post<RespostaTesteRegras>('/regras/teste', payload);
+    return data;
+  } catch (error) {
+    throw parseApiError(error, 'Erro ao executar teste de regras.');
+  }
 }
 
 export interface RespostaExportacao {

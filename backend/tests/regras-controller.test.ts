@@ -11,6 +11,9 @@ const { prismaMock } = vi.hoisted(() => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    transacao: {
+      findMany: vi.fn(),
+    },
   },
 }));
 
@@ -42,6 +45,7 @@ beforeEach(() => {
   prismaMock.regra.create.mockReset();
   prismaMock.regra.update.mockReset();
   prismaMock.regra.delete.mockReset();
+  prismaMock.transacao.findMany.mockReset();
 
   prismaMock.regra.create.mockResolvedValue({
     id: 1,
@@ -58,6 +62,26 @@ beforeEach(() => {
     subCategoria: 'Alimentação',
     prioridade: 1,
   });
+
+  prismaMock.regra.findMany.mockResolvedValue([
+    {
+      id: 1,
+      palavraChave: 'IFOOD',
+      categoria: 'PESSOAL',
+      subCategoria: 'Alimentação',
+      prioridade: 1,
+    },
+  ]);
+
+  prismaMock.transacao.findMany.mockResolvedValue([
+    {
+      descricao: 'PIX ENVIADO IFOOD',
+      valor: 25,
+      tipo: 'SAIDA',
+      dataTransacao: new Date('2026-03-20T10:00:00.000Z'),
+      classificacao: 'INDEFINIDO',
+    },
+  ]);
 });
 
 describe('Regras controller', () => {
@@ -148,6 +172,160 @@ describe('Regras controller', () => {
     expect(res.body).toEqual({
       erro: 'Regra não encontrada.',
       codigo: 'RESOURCE_NOT_FOUND',
+    });
+  });
+
+  it('executa diagnostico de regras com modo SALVAS', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/regras/teste')
+      .send({
+        modoRegras: 'SALVAS',
+        usarIndefinidasBanco: true,
+        limiteAmostras: 10,
+      });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.regra.findMany).toHaveBeenCalledTimes(1);
+    expect(prismaMock.transacao.findMany).toHaveBeenCalledTimes(1);
+    expect(res.body).toMatchObject({
+      modoRegras: 'SALVAS',
+      totalAmostras: 1,
+      origemAmostras: 'BANCO_INDEFINIDAS',
+      resumoIndefinidas: {
+        quantidadeTotal: 1,
+        quantidadePix: 1,
+      },
+    });
+  });
+
+  it('executa diagnostico sem acessar banco quando modo TEMPORARIAS e sem indefinidas', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/regras/teste')
+      .send({
+        modoRegras: 'TEMPORARIAS',
+        usarIndefinidasBanco: false,
+        regrasTemporarias: [
+          {
+            palavraChave: 'RAPPI',
+            categoria: 'PESSOAL',
+            subCategoria: 'Alimentação',
+            prioridade: 1,
+          },
+        ],
+        amostrasManuais: [
+          {
+            descricao: 'PAGAMENTO RAPPI',
+            valor: 45.9,
+            tipo: 'SAIDA',
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(prismaMock.regra.findMany).not.toHaveBeenCalled();
+    expect(prismaMock.transacao.findMany).not.toHaveBeenCalled();
+    expect(res.body).toMatchObject({
+      modoRegras: 'TEMPORARIAS',
+      origemAmostras: 'MANUAL',
+      resumoClassificacaoTeste: {
+        pessoal: 1,
+      },
+    });
+  });
+
+  it('combina amostras manuais e banco em modo AMBAS', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/regras/teste')
+      .send({
+        modoRegras: 'AMBAS',
+        usarIndefinidasBanco: true,
+        regrasTemporarias: [
+          {
+            palavraChave: 'SANTANDER',
+            categoria: 'EMPRESA',
+            subCategoria: 'Banco',
+            prioridade: 0,
+          },
+        ],
+        amostrasManuais: [
+          {
+            descricao: 'PIX SANTANDER',
+            valor: 1000,
+            tipo: 'SAIDA',
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      origemAmostras: 'MISTO',
+      totalAmostras: 2,
+    });
+  });
+
+  it('retorna 400 quando desabilita banco sem amostras manuais', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/regras/teste')
+      .send({
+        modoRegras: 'SALVAS',
+        usarIndefinidasBanco: false,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      codigo: 'VALIDATION_ERROR',
+    });
+    expect(res.body.detalhes).toEqual([
+      { campo: 'payload', mensagem: 'Informe amostras manuais quando usarIndefinidasBanco for false.' },
+    ]);
+  });
+
+  it('retorna 400 para modo de regras invalido', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/regras/teste')
+      .send({
+        modoRegras: 'INVALIDO',
+        usarIndefinidasBanco: true,
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      codigo: 'VALIDATION_ERROR',
+    });
+  });
+
+  it('aceita modoRegras e tipo em lowercase', async () => {
+    const app = createApp();
+
+    const res = await request(app)
+      .post('/api/regras/teste')
+      .send({
+        modoRegras: 'ambas',
+        usarIndefinidasBanco: false,
+        amostrasManuais: [
+          {
+            descricao: 'PIX ENVIADO IFOOD',
+            valor: 12.5,
+            tipo: 'saida',
+          },
+        ],
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({
+      modoRegras: 'AMBAS',
+      totalAmostras: 1,
+      origemAmostras: 'MANUAL',
     });
   });
 });

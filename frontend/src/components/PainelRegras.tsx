@@ -1,13 +1,20 @@
 import { useState } from 'react';
 import { Regra, Categoria } from '../types';
 import { useRegras } from '../hooks/useRegras';
+import { ModalConfirmacao } from './ModalConfirmacao';
+import { ModalTesteRegras } from './ModalTesteRegras';
 
+/**
+ * Painel de regras com CRUD, confirmação de exclusão e diagnóstico assistido.
+ */
 export function PainelRegras() {
   const { regras, carregando, erro: erroApi, criar, atualizar, deletar } = useRegras();
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [novaRegra, setNovaRegra] = useState({ palavraChave: '', categoria: 'PESSOAL' as Categoria, subCategoria: '', prioridade: 0 });
   const [editData, setEditData] = useState<Partial<Omit<Regra, 'id'>>>({});
   const [erro, setErro] = useState<string | null>(null);
+  const [regraParaExcluir, setRegraParaExcluir] = useState<Regra | null>(null);
+  const [modalTesteAberto, setModalTesteAberto] = useState(false);
 
   async function handleCriar() {
     if (!novaRegra.palavraChave.trim()) { setErro('Informe ao menos uma palavra-chave.'); return; }
@@ -37,7 +44,15 @@ export function PainelRegras() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-800">Regras de Classificação</h2>
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <h2 className="text-xl font-bold text-gray-800">Regras de Classificação</h2>
+        <button
+          onClick={() => setModalTesteAberto(true)}
+          className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
+        >
+          Abrir Teste de Regras
+        </button>
+      </div>
 
       {/* Formulário nova regra */}
       <div className="bg-gray-50 rounded-xl p-4 border border-gray-200">
@@ -89,21 +104,21 @@ export function PainelRegras() {
       {carregando ? (
         <p className="text-gray-500 text-sm">Carregando regras...</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-gray-200">
-          <table className="min-w-full divide-y divide-gray-200 text-sm">
+        <div className="overflow-x-auto rounded-xl border border-gray-200 md:overflow-visible">
+          <table className="min-w-[740px] w-full table-fixed divide-y divide-gray-200 text-sm md:min-w-full">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Palavras-chave</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Categoria</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Prioridade</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
+                <th className="w-[36%] px-2 py-3 text-left text-xs font-medium uppercase text-gray-500">Palavras-chave</th>
+                <th className="w-[16%] px-2 py-3 text-center text-xs font-medium uppercase text-gray-500">Categoria</th>
+                <th className="w-[20%] px-2 py-3 text-center text-xs font-medium uppercase text-gray-500">Tipo</th>
+                <th className="w-[12%] px-2 py-3 text-center text-xs font-medium uppercase text-gray-500">Prioridade</th>
+                <th className="w-[16%] px-2 py-3 text-center text-xs font-medium uppercase text-gray-500">Ações</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
               {regras.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3">
+                  <td className="px-2 py-3">
                     {editandoId === r.id ? (
                       <input
                         type="text"
@@ -112,10 +127,10 @@ export function PainelRegras() {
                         className="border border-gray-300 rounded px-2 py-1 text-sm w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     ) : (
-                      <span className="text-gray-700">{r.palavraChave}</span>
+                      <span className="block break-words text-gray-700">{r.palavraChave}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {editandoId === r.id ? (
                       <select
                         value={editData.categoria || r.categoria}
@@ -133,20 +148,20 @@ export function PainelRegras() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {editandoId === r.id ? (
                       <input
                         type="text"
                         value={editData.subCategoria ?? ''}
                         placeholder="Tipo..."
                         onChange={(e) => setEditData((p) => ({ ...p, subCategoria: e.target.value }))}
-                        className="border border-gray-300 rounded px-2 py-1 text-sm w-32 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        className="border border-gray-300 rounded px-2 py-1 text-sm w-full max-w-[130px] focus:outline-none focus:ring-2 focus:ring-blue-400"
                       />
                     ) : (
-                      <span className="text-xs text-gray-600">{r.subCategoria || '-'}</span>
+                      <span className="block break-words text-xs text-gray-600">{r.subCategoria || '-'}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {editandoId === r.id ? (
                       <input
                         type="number"
@@ -159,7 +174,7 @@ export function PainelRegras() {
                       <span className="text-gray-600">{r.prioridade}</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-center">
+                  <td className="px-2 py-3 text-center">
                     {editandoId === r.id ? (
                       <div className="flex gap-2 justify-center">
                         <button
@@ -185,7 +200,7 @@ export function PainelRegras() {
                           ✏️
                         </button>
                         <button
-                          onClick={() => deletar(r.id)}
+                          onClick={() => setRegraParaExcluir(r)}
                           className="text-gray-400 hover:text-red-600 transition-colors text-sm"
                           title="Excluir"
                         >
@@ -199,6 +214,32 @@ export function PainelRegras() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {regraParaExcluir && (
+        <ModalConfirmacao
+          titulo="Confirmar exclusão"
+          mensagem={`Tem certeza que quer apagar a regra "${regraParaExcluir.palavraChave}"?`}
+          rotuloConfirmar="Apagar linha"
+          confirmandoLabel="Apagando..."
+          onCancelar={() => setRegraParaExcluir(null)}
+          onConfirmar={async () => {
+            await deletar(regraParaExcluir.id);
+            setRegraParaExcluir(null);
+          }}
+        />
+      )}
+
+      {modalTesteAberto && (
+        <ModalTesteRegras
+          regraTemporariaInicial={{
+            palavraChave: novaRegra.palavraChave,
+            categoria: novaRegra.categoria,
+            subCategoria: novaRegra.subCategoria,
+            prioridade: novaRegra.prioridade,
+          }}
+          onFechar={() => setModalTesteAberto(false)}
+        />
       )}
     </div>
   );

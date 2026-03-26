@@ -64,3 +64,90 @@ export interface RespostaListagemTransacoes {
   paginacao: PaginacaoTransacoes;
   totais: TotaisTransacoes;
 }
+
+export type ModoTesteRegras = 'SALVAS' | 'TEMPORARIAS' | 'AMBAS';
+export type OrigemAmostrasDiagnostico = 'MANUAL' | 'BANCO_INDEFINIDAS' | 'MISTO';
+export type MecanismoClassificacaoDiagnostico =
+  | 'REGRA_EXPLICITA'
+  | 'HEURISTICA_PIX'
+  | 'HEURISTICA_NAO_PIX'
+  | 'FALLBACK';
+
+export interface RegraTemporariaTeste {
+  palavraChave: string;
+  categoria: Categoria;
+  subCategoria?: string;
+  prioridade?: number;
+}
+
+export interface AmostraManualDiagnostico {
+  descricao: string;
+  valor: number;
+  tipo: Tipo;
+  dataTransacao?: string;
+}
+
+export interface RequisicaoTesteRegras {
+  modoRegras: ModoTesteRegras;
+  regrasTemporarias?: RegraTemporariaTeste[];
+  usarIndefinidasBanco?: boolean;
+  filtroClassificacaoBanco?: 'TODAS' | 'INDEFINIDO' | 'PESSOAL' | 'EMPRESA';
+  limiteAmostras?: number;
+  amostrasManuais?: AmostraManualDiagnostico[];
+}
+
+export interface FaixaValorDiagnostico {
+  faixaValor: '< R$100' | 'R$100-500' | 'R$500-1k' | 'R$1k-5k' | '> R$5k';
+  quantidade: number;
+  valorMedio: number;
+  valorMinimo: number;
+  valorMaximo: number;
+}
+
+export interface TopDescricaoDiagnostico {
+  descricaoResumida: string;
+  quantidade: number;
+  valorMedio: number;
+}
+
+export interface ResumoClassificacaoDiagnostico {
+  totalTransacoes: number;
+  pessoal: number;
+  empresa: number;
+  indefinido: number;
+  percentualIndefinido: number;
+}
+
+export interface ResultadoAmostraDiagnostico {
+  indice: number;
+  descricao: string;
+  valor: number;
+  tipo: Tipo;
+  classificacaoOriginal: Classificacao | null;
+  classificacaoTeste: Classificacao;
+  categoriaGenerica: string | null;
+  mecanismo: MecanismoClassificacaoDiagnostico;
+  confianca: number;
+  regraAplicada: string | null;
+  detalhes: string;
+}
+
+export interface RespostaTesteRegras {
+  modoRegras: ModoTesteRegras;
+  totalAmostras: number;
+  origemAmostras: OrigemAmostrasDiagnostico;
+  resumoIndefinidas: {
+    quantidadeTotal: number;
+    quantidadePix: number;
+    quantidadeNaoPix: number;
+    percentualPix: number;
+    percentualNaoPix: number;
+  };
+  pixPorFaixaValor: FaixaValorDiagnostico[];
+  naoPixPorFaixaValor: FaixaValorDiagnostico[];
+  topDescricoesPix: TopDescricaoDiagnostico[];
+  topDescricoesNaoPix: TopDescricaoDiagnostico[];
+  resumoClassificacaoAtual: ResumoClassificacaoDiagnostico;
+  resumoClassificacaoTeste: ResumoClassificacaoDiagnostico;
+  resultados: ResultadoAmostraDiagnostico[];
+}

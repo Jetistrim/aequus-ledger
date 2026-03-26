@@ -19,5 +19,6 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "husky": "^9.1.7"
-  }
+  },
+  "version": "1.2.0"
 }

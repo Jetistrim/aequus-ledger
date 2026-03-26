@@ -18,6 +18,19 @@ export interface ResultadoClassificacao {
   sugestaoClassificacao: 'PESSOAL' | 'EMPRESA' | null;
 }
 
+export type MecanismoClassificacao =
+  | 'REGRA_EXPLICITA'
+  | 'HEURISTICA_PIX'
+  | 'HEURISTICA_NAO_PIX'
+  | 'FALLBACK';
+
+export interface ResultadoClassificacaoDiagnostico extends ResultadoClassificacao {
+  mecanismo: MecanismoClassificacao;
+  confianca: number;
+  regraAplicada: string | null;
+  detalhes: string;
+}
+
 /**
  * Retorna true quando a descricao contem o token PIX como palavra isolada.
  *
@@ -58,6 +71,34 @@ export function classificar(
   valorAbsoluto?: number,
   tipoTransacao?: 'entrada' | 'saida',
 ): ResultadoClassificacao {
+  const diagnostico = classificarComDiagnostico(
+    descricao,
+    regras,
+    dataTransacao,
+    valorAbsoluto,
+    tipoTransacao,
+  );
+
+  return {
+    classificacao: diagnostico.classificacao,
+    categoriaGenerica: diagnostico.categoriaGenerica,
+    sugestaoClassificacao: diagnostico.sugestaoClassificacao,
+  };
+}
+
+/**
+ * Variante estendida de classificacao usada por telas/rotinas de diagnostico.
+ *
+ * Mantem o mesmo funil da funcao classificar, adicionando metadados para
+ * facilitar explicacao do resultado ao usuario.
+ */
+export function classificarComDiagnostico(
+  descricao: string,
+  regras: Regra[],
+  dataTransacao?: Date,
+  valorAbsoluto?: number,
+  tipoTransacao?: 'entrada' | 'saida',
+): ResultadoClassificacaoDiagnostico {
   const descNorm = normalizeForMatching(descricao, { removerStopwordsBancarias: true });
 
   const regraCorrespondente = encontrarPrimeiraRegraCorrespondente(descNorm, regras);
@@ -67,6 +108,10 @@ export function classificar(
       classificacao: regraCorrespondente.categoria as Classificacao,
       categoriaGenerica: regraCorrespondente.subCategoria ?? null,
       sugestaoClassificacao: null,
+      mecanismo: 'REGRA_EXPLICITA',
+      confianca: 10,
+      regraAplicada: regraCorrespondente.palavraChave,
+      detalhes: `Correspondencia por palavra-chave: ${regraCorrespondente.palavraChave}`,
     };
   }
 
@@ -80,6 +125,10 @@ export function classificar(
         classificacao: heuristicaPix.classificacao,
         categoriaGenerica: null,
         sugestaoClassificacao: null,
+        mecanismo: 'HEURISTICA_PIX',
+        confianca: heuristicaPix.confianca,
+        regraAplicada: null,
+        detalhes: `Classificacao por heuristica PIX (confianca ${heuristicaPix.confianca}).`,
       };
     }
   } else {
@@ -89,6 +138,10 @@ export function classificar(
         classificacao: heuristicaNaoPix.classificacao,
         categoriaGenerica: null,
         sugestaoClassificacao: null,
+        mecanismo: 'HEURISTICA_NAO_PIX',
+        confianca: heuristicaNaoPix.confianca,
+        regraAplicada: null,
+        detalhes: `Classificacao por heuristica nao-PIX (confianca ${heuristicaNaoPix.confianca}).`,
       };
     }
   }
@@ -97,5 +150,9 @@ export function classificar(
     classificacao: 'INDEFINIDO',
     categoriaGenerica: null,
     sugestaoClassificacao: null,
+    mecanismo: 'FALLBACK',
+    confianca: 0,
+    regraAplicada: null,
+    detalhes: 'Nenhuma regra ou heuristica atingiu confianca minima.',
   };
 }

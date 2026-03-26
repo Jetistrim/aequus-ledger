@@ -2,11 +2,15 @@ import { useState, useCallback, useEffect } from 'react';
 import { Regra } from '../types';
 import * as api from '../services/api';
 
+/**
+ * Hook de estado/CRUD para a página de regras de classificação.
+ */
 export function useRegras() {
   const [regras, setRegras] = useState<Regra[]>([]);
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
+  /** Carrega regras ordenadas a partir da API e atualiza o estado local. */
   const carregar = useCallback(async () => {
     setCarregando(true);
     setErro(null);
@@ -20,6 +24,7 @@ export function useRegras() {
     }
   }, []);
 
+  /** Cria regra e mantém ordenação local por prioridade. */
   const criar = useCallback(async (regra: Omit<Regra, 'id'>) => {
     try {
       setErro(null);
@@ -32,6 +37,7 @@ export function useRegras() {
     }
   }, []);
 
+  /** Atualiza uma regra existente pelo id sem recarregar a lista completa. */
   const atualizar = useCallback(async (id: number, dados: Partial<Omit<Regra, 'id'>>) => {
     try {
       setErro(null);
@@ -44,6 +50,7 @@ export function useRegras() {
     }
   }, []);
 
+  /** Exclui regra e remove o item do estado local. */
   const deletar = useCallback(async (id: number) => {
     try {
       setErro(null);

@@ -16,7 +16,7 @@ Sistema web de conciliação financeira pessoal/empresarial. Faz upload de extra
 npm run docker:up
 ```
 
-Sobe PostgreSQL + backend Express + frontend Vite com hot-reload.
+Sobe backend Express + frontend Vite com hot-reload.
 
 ### Perfil de produção (Nginx)
 
@@ -24,11 +24,10 @@ Sobe PostgreSQL + backend Express + frontend Vite com hot-reload.
 npm run docker:up:prod
 ```
 
-Sobe PostgreSQL + backend Express + frontend estático servido por Nginx.
+Sobe backend Express + frontend estático servido por Nginx.
 
 No profile de produção:
 - o backend não é exposto diretamente na máquina host
-- o banco não é exposto diretamente na máquina host
 - o frontend publica apenas a porta `5173` e faz proxy interno para a API
 
 Acesse em produção local: **https://localhost:5173**
@@ -77,7 +76,7 @@ npm run docker:down:volumes
 
 O projeto tem duas camadas de verificação de saúde:
 
-**Healthchecks nativos no Docker Compose** — monitoram `db`, `backend`, `frontend-dev` e `frontend-prod` antes de inicializar serviços dependentes.
+**Healthchecks nativos no Docker Compose** — monitoram `backend`, `frontend-dev` e `frontend-prod` antes de inicializar serviços dependentes.
 
 **Script manual** — `npm run docker:healthcheck` — verifica rapidamente se a aplicação está pronta:
 
@@ -136,7 +135,7 @@ Scan automatizado no GitHub Actions:
 
 Necessário: Node.js 20+.
 
-Observação: no modo local de desenvolvimento (`npm run dev`), o backend usa SQLite volátil (`backend/prisma/dev.db`) e reseta os dados a cada inicialização.
+Observação: no modo local de desenvolvimento (`npm run dev`), o backend armazena os dados em `backend/.runtime/data/conciliacao.sqlite`.
 
 Se a porta preferida do backend (`3001`) estiver ocupada, o runtime local faz fallback automático para uma porta livre e o launcher do frontend descobre essa URL efetiva antes de subir o Vite.
 
@@ -145,14 +144,7 @@ Se a porta preferida do backend (`3001`) estiver ocupada, o runtime local faz fa
 ```bash
 cd backend
 npm install
-npm run dev          # reseta SQLite, executa seed e sobe servidor
-```
-
-Para usar PostgreSQL local manualmente no backend, crie `backend/.env` com `DATABASE_URL` e rode:
-
-```bash
-cd backend
-npm run dev:postgres
+npm run dev          # executa seed e sobe servidor
 ```
 
 ### Frontend
@@ -176,20 +168,11 @@ npm run dev
 ### `backend/.env`
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/conciliacao_financeira"
+DATABASE_URL="file:./.runtime/data/conciliacao.sqlite"
 PORT=3001
 CORS_ORIGIN=http://localhost:5173
-EXPORTS_DIR=./exports
 MAX_FILE_SIZE_MB=10
 MAX_TOTAL_UPLOAD_SIZE_MB=100
-```
-
-### `.env` (raiz, opcional — sobrescreve defaults do Docker Compose)
-
-```env
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=postgres
-POSTGRES_DB=conciliacao_financeira
 ```
 
 ---
@@ -199,7 +182,7 @@ POSTGRES_DB=conciliacao_financeira
 | Camada | Tecnologia |
 |---|---|
 | Backend | Node.js + Express 5 + TypeScript |
-| Banco | PostgreSQL 16 + Prisma 7 + `@prisma/adapter-pg` |
+| Banco | SQLite + Prisma 7 + `@prisma/adapter-better-sqlite3` |
 | Frontend | React 19 + TypeScript + Vite 6 |
 | Estilização | Tailwind CSS 3 |
 | Upload | Multer 2 (memoryStorage) |

@@ -5,3 +5,4 @@ exports/
 .env
 /src/generated/prisma
 /prisma/dev.db
+/.runtime

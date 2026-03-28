@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { z } from 'zod';
 import { ExportFormat, gerarExtratos } from '../services/exportService';
+import { resolveRuntimePaths } from '../runtime/runtimePaths';
 
 const exportPayloadSchema = z.object({
   formato: z.enum(['csv', 'xlsx']).optional(),
@@ -43,8 +44,8 @@ export async function downloadArquivo(req: Request, res: Response, next: NextFun
       return;
     }
 
-    const EXPORTS_DIR = process.env.EXPORTS_DIR || './exports';
-    const filePath = path.resolve(EXPORTS_DIR, fileName);
+    const runtimePaths = resolveRuntimePaths();
+    const filePath = path.resolve(runtimePaths.exportsDir, fileName);
 
     res.download(filePath, fileName, (err) => {
       if (err) next(err);

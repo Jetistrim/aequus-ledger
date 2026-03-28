@@ -3,14 +3,14 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
 }
 
 model Transacao {
   id               String        @id @default(uuid())
   dataTransacao    DateTime      @map("data_transacao")
   descricao        String
-  valor            Decimal       @db.Decimal(12, 2)
+  valor            Decimal
   tipo             Tipo
   classificacao    Classificacao @default(INDEFINIDO)
   categoriaGenerica String?      @map("categoria_generica")

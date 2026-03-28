@@ -1,6 +1,6 @@
 {
     "name": "backend",
-    "version": "1.2.0",
+    "version": "2.0.0",
     "description": "",
     "main": "index.js",
     "scripts": {
@@ -10,12 +10,12 @@
         "test": "npm run typecheck && vitest run",
         "test:unit": "vitest run",
         "dev": "npm run dev:volatile",
-        "dev:volatile": "npm run db:prepare:volatile && cross-env DATABASE_URL=file:./prisma/dev.db nodemon --watch src --ext ts --exec \"ts-node --transpile-only src/index.ts\"",
-        "db:prepare:volatile": "cross-env DATABASE_URL=file:./prisma/dev.db prisma generate --schema prisma-dev/schema.prisma && cross-env DATABASE_URL=file:./prisma/dev.db prisma db push --schema prisma-dev/schema.prisma --force-reset && cross-env DATABASE_URL=file:./prisma/dev.db ts-node --transpile-only prisma/seed.ts",
+        "dev:volatile": "npm run db:prepare:volatile && cross-env DATABASE_URL=file:./.runtime/data/conciliacao.sqlite nodemon --watch src --ext ts --exec \"ts-node --transpile-only src/index.ts\"",
+        "db:prepare:volatile": "cross-env DATABASE_URL=file:./.runtime/data/conciliacao.sqlite prisma generate --schema prisma/schema.prisma && cross-env DATABASE_URL=file:./.runtime/data/conciliacao.sqlite prisma migrate deploy && cross-env DATABASE_URL=file:./.runtime/data/conciliacao.sqlite ts-node --transpile-only prisma/seed.ts",
         "dev:postgres": "nodemon --watch src --ext ts --exec \"ts-node --transpile-only src/index.ts\"",
         "start": "node dist/index.js",
         "seed": "ts-node --transpile-only prisma/seed.ts",
-        "seed:compiled": "node dist/prisma/seed.js",
+        "seed:compiled": "node dist/seed.js",
         "db:migrate": "prisma migrate deploy",
         "start:docker": "node dist/index.js"
     },
@@ -25,7 +25,6 @@
     "type": "commonjs",
     "dependencies": {
         "@prisma/adapter-better-sqlite3": "^7.5.0",
-        "@prisma/adapter-pg": "^7.5.0",
         "@prisma/client": "^7.5.0",
         "better-sqlite3": "^12.8.0",
         "cors": "^2.8.6",
@@ -37,7 +36,8 @@
         "json2csv": "^6.0.0-alpha.2",
         "multer": "^2.1.1",
         "ofx-js": "^0.2.0",
-        "pg": "^8.20.0",
+        "prisma": "^7.5.0",
+        "systray2": "^2.1.4",
         "xlsx": "^0.18.5",
         "zod": "^4.3.6"
     },
@@ -47,11 +47,9 @@
         "@types/json2csv": "^5.0.7",
         "@types/multer": "^2.1.0",
         "@types/node": "^25.5.0",
-        "@types/pg": "^8.18.0",
         "@types/supertest": "^7.2.0",
         "cross-env": "^7.0.3",
         "nodemon": "^3.1.14",
-        "prisma": "^7.5.0",
         "supertest": "^7.2.2",
         "ts-node": "^10.9.2",
         "typescript": "^5.9.3",

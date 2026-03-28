@@ -8,3 +8,5 @@ frontend/certs/*.crt
 frontend/certs/*.key
 frontend/tests/e2e/real-fixtures/
 backend/tests/fixtures/real/
+release/
+artifacts/

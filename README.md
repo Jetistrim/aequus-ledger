@@ -138,6 +138,8 @@ Necessário: Node.js 20+.
 
 Observação: no modo local de desenvolvimento (`npm run dev`), o backend usa SQLite volátil (`backend/prisma/dev.db`) e reseta os dados a cada inicialização.
 
+Se a porta preferida do backend (`3001`) estiver ocupada, o runtime local faz fallback automático para uma porta livre e o launcher do frontend descobre essa URL efetiva antes de subir o Vite.
+
 ### Backend
 
 ```bash

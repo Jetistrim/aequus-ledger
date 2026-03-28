@@ -1,44 +1,4 @@
 services:
-  db:
-    image: postgres:16
-    container_name: conciliacao-db
-    restart: unless-stopped
-    init: true
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-conciliacao_financeira}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-conciliacao_financeira}"]
-      interval: 5s
-      timeout: 5s
-      retries: 12
-
-  backend-init:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      target: migrate
-    container_name: conciliacao-backend-init
-    init: true
-    depends_on:
-      db:
-        condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    cap_drop:
-      - ALL
-    pids_limit: 128
-    tmpfs:
-      - /tmp
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-conciliacao_financeira}
-    restart: "no"
-
   backend-dev:
     build:
       context: ./backend
@@ -47,18 +7,16 @@ services:
     restart: unless-stopped
     init: true
     profiles: ["dev"]
-    depends_on:
-      backend-init:
-        condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     pids_limit: 256
+    stop_grace_period: 30s
     tmpfs:
       - /tmp
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-conciliacao_financeira}
+      DATABASE_URL: file:/app/data/db.sqlite
       PORT: 3001
       CORS_ORIGIN: http://localhost:5173
       MAX_FILE_SIZE_MB: 10
@@ -67,6 +25,7 @@ services:
     ports:
       - "3001:3001"
     volumes:
+      - backend_data:/app/data
       - backend_exports:/app/exports
       - backend_uploads:/app/uploads
     networks:
@@ -75,10 +34,10 @@ services:
           - backend
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 15s
+      interval: ${HC_INTERVAL_DEV:-10s}
+      timeout: ${HC_TIMEOUT_DEV:-5s}
+      retries: ${HC_RETRIES_DEV:-12}
+      start_period: ${HC_START_PERIOD_DEV:-15s}
 
   backend-prod:
     build:
@@ -88,24 +47,23 @@ services:
     restart: unless-stopped
     init: true
     profiles: ["prod"]
-    depends_on:
-      backend-init:
-        condition: service_completed_successfully
     security_opt:
       - no-new-privileges:true
     cap_drop:
       - ALL
     pids_limit: 256
+    stop_grace_period: 30s
     tmpfs:
       - /tmp
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-conciliacao_financeira}
+      DATABASE_URL: file:/app/data/db.sqlite
       PORT: 3001
-      CORS_ORIGIN: http://localhost:5173
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
       MAX_FILE_SIZE_MB: 10
       EXPORTS_DIR: ./exports
       UPLOADS_DIR: ./uploads
     volumes:
+      - backend_data:/app/data
       - backend_exports:/app/exports
       - backend_uploads:/app/uploads
     networks:
@@ -114,10 +72,10 @@ services:
           - backend
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/api/health').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 15s
+      interval: ${HC_INTERVAL_PROD:-15s}
+      timeout: ${HC_TIMEOUT_PROD:-7s}
+      retries: ${HC_RETRIES_PROD:-12}
+      start_period: ${HC_START_PERIOD_PROD:-20s}
 
   frontend-dev:
     build:
@@ -172,13 +130,13 @@ services:
     ports:
       - "5173:8443"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-check-certificate -qO- https://127.0.0.1:8443/ >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
+      test: ["CMD", "node", "-e", "process.env.NODE_TLS_REJECT_UNAUTHORIZED='0'; fetch('https://127.0.0.1:8443/').then((response) => { if (!response.ok) process.exit(1); }).catch(() => process.exit(1));"]
+      interval: ${HC_INTERVAL_PROD:-15s}
+      timeout: ${HC_TIMEOUT_PROD:-7s}
+      retries: ${HC_RETRIES_PROD:-12}
+      start_period: ${HC_START_PERIOD_PROD:-20s}
 
 volumes:
-  postgres_data:
+  backend_data:
   backend_exports:
   backend_uploads:

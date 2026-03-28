@@ -2,9 +2,14 @@
   "name": "conciliacao-financeira",
   "private": true,
   "scripts": {
-    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix backend\" \"node scripts/wait-backend-ready.mjs && npm run dev --prefix frontend\"",
+    "dev": "concurrently --names \"backend,frontend\" --prefix-colors \"cyan,magenta\" \"npm run dev --prefix backend\" \"node scripts/start-frontend-dev.mjs\"",
     "backend": "npm run dev --prefix backend",
     "frontend": "npm run dev --prefix frontend",
+    "build:backend": "npm run build --prefix backend",
+    "build:frontend": "npm run build --prefix frontend",
+    "build:release": "node scripts/build-release.mjs",
+    "package:caxa": "node scripts/package-caxa.mjs",
+    "release": "npm run build:release && npm run package:caxa",
     "docker:up": "node scripts/docker-up.mjs dev",
     "docker:up:prod": "node scripts/docker-up.mjs prod",
     "docker:down": "docker compose --profile dev --profile prod down --remove-orphans",
@@ -17,8 +22,9 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "caxa": "^3.0.1",
     "concurrently": "^9.2.1",
     "husky": "^9.1.7"
   },
-  "version": "1.2.0"
+  "version": "2.0.0"
 }

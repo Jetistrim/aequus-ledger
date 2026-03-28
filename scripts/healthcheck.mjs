@@ -1,10 +1,26 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
 const frontendUrl = process.env.HEALTHCHECK_FRONTEND_URL || 'http://localhost:5173';
+const backendInstanceFile = process.env.HEALTHCHECK_BACKEND_INSTANCE_FILE
+  || path.join(process.cwd(), 'backend', '.runtime', 'active-instance.json');
 if (process.env.HEALTHCHECK_INSECURE_TLS === 'true') {
   process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 }
 
+function readBackendHealthFromInstanceFile() {
+  if (!fs.existsSync(backendInstanceFile)) {
+    return null;
+  }
+
+  const raw = fs.readFileSync(backendInstanceFile, 'utf8');
+  const parsed = JSON.parse(raw);
+  return typeof parsed?.healthUrl === 'string' ? parsed.healthUrl : null;
+}
+
 const backendCandidates = [
   process.env.HEALTHCHECK_BACKEND_URL,
+  readBackendHealthFromInstanceFile(),
   'http://localhost:3001/api/health',
   `${frontendUrl.replace(/\/$/, '')}/api/health`,
 ].filter(Boolean);

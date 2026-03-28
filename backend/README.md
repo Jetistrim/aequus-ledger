@@ -39,6 +39,8 @@ npm run seed         # popula regras de classificação iniciais
 
 No modo volátil (`npm run dev`), o backend usa `file:./prisma/dev.db` e faz reset do banco a cada inicialização. Isso garante ambiente limpo para depuração sem persistir dados entre execuções.
 
+Mesmo em desenvolvimento, o bootstrap do servidor agora normaliza paths de runtime e tenta fallback automático de porta quando `3001` já estiver ocupada. A URL efetiva da instância ativa é publicada em `backend/.runtime/active-instance.json`.
+
 O script `start:docker` é usado exclusivamente pelo container Docker — ele roda migrate + seed + servidor em sequência.
 
 ---

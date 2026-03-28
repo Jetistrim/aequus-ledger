@@ -4,9 +4,8 @@ import { Parser } from 'json2csv';
 import { Transacao } from '@prisma/client';
 import * as XLSX from 'xlsx';
 import { prisma } from '../lib/prisma';
+import { ensureRuntimeDirectories, resolveRuntimePaths } from '../runtime/runtimePaths';
 import { protectCsvFormula, sanitizeTextInput } from '../utils/normalization';
-
-const EXPORTS_DIR = process.env.EXPORTS_DIR || './exports';
 const CSV_COLUMNS = [
   'data_transacao',
   'descricao',
@@ -139,6 +138,7 @@ function montarDatasets(
   transacoesEmpresa: Transacao[],
   formato: ExportFormat,
 ): ExportDataset[] {
+  const runtimePaths = resolveRuntimePaths();
   const hoje = formatarData(new Date());
   const extensao = formato === 'xlsx' ? 'xlsx' : 'csv';
 
@@ -147,7 +147,7 @@ function montarDatasets(
       scope: 'pessoal',
       titulo: 'Extrato Pessoal',
       subtitulo: `Gerado em ${hoje}`,
-      filePath: path.resolve(EXPORTS_DIR, `extrato_pessoal_${hoje}.${extensao}`),
+      filePath: path.resolve(runtimePaths.exportsDir, `extrato_pessoal_${hoje}.${extensao}`),
       transacoes: transacoesPessoal,
       summary: calcularResumo(transacoesPessoal),
     },
@@ -155,7 +155,7 @@ function montarDatasets(
       scope: 'empresa',
       titulo: 'Extrato Empresa',
       subtitulo: `Gerado em ${hoje}`,
-      filePath: path.resolve(EXPORTS_DIR, `extrato_empresa_${hoje}.${extensao}`),
+      filePath: path.resolve(runtimePaths.exportsDir, `extrato_empresa_${hoje}.${extensao}`),
       transacoes: transacoesEmpresa,
       summary: calcularResumo(transacoesEmpresa),
     },
@@ -294,9 +294,7 @@ function escreverArquivos(datasets: ExportDataset[], formato: ExportFormat): Exp
 }
 
 export async function gerarExtratos(formato: ExportFormat = 'csv'): Promise<ExportResult> {
-  if (!fs.existsSync(EXPORTS_DIR)) {
-    fs.mkdirSync(EXPORTS_DIR, { recursive: true });
-  }
+  ensureRuntimeDirectories();
 
   const [transacoesPessoal, transacoesEmpresa] = await Promise.all([
     prisma.transacao.findMany({ where: { classificacao: 'PESSOAL' }, orderBy: { dataTransacao: 'desc' } }),

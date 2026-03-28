@@ -24,7 +24,7 @@ describe('instance metadata', () => {
     const metadata = {
       version: 1,
       pid: process.pid,
-      appVersion: '2.0.0',
+      appVersion: '2.0.1',
       host: '127.0.0.1',
       preferredPort: 3001,
       port: 3005,

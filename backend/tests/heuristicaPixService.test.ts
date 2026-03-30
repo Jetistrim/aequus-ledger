@@ -18,8 +18,8 @@ describe('heuristicaPixService', () => {
     expect(resultado.classificacao).toBe('PESSOAL');
   });
 
-  it('usa tokens de nicho para classificar empresa', () => {
-    const resultado = classificarPixComHeuristica('PIX ENVIADO MAXSAUDE DISTRIBUIDORA DE PRODUTOS ODONTOLOGICOS', 780, 'saida');
+  it('usa tokens corporativos gerais para classificar empresa', () => {
+    const resultado = classificarPixComHeuristica('PIX ENVIADO ACME SERVICOS LTDA', 780, 'saida');
     expect(resultado.classificacao).toBe('EMPRESA');
   });
 

@@ -30,6 +30,10 @@ Pipeline executada:
 
 ```text
 portable/
+├── config/
+│   ├── seed-generico.json
+│   ├── seed-estetica.json
+│   └── seed-alexia.json
 ├── dist/
 │   ├── portable-entrypoint.js
 │   ├── index.js
@@ -58,6 +62,17 @@ Responsabilidades:
 3. Executa `prisma migrate deploy`.
 4. Executa seed idempotente.
 5. Inicia o servidor via `require('./index')`.
+
+### Regras por JSON no pacote descompactado
+
+Depois de descompactar o ZIP, edite ou adicione seus arquivos `seed-*.json` em:
+
+```text
+<raiz-portable>/config/
+```
+
+O loader do backend carrega automaticamente todos os `seed-*.json` encontrados nessa pasta.
+Isso permite distribuir a mesma base e trocar regras por nicho/empresa sem alterar TypeScript.
 
 ## Dados Em Runtime Portatil
 

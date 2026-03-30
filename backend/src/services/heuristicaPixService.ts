@@ -25,22 +25,6 @@ const TOKENS_EMPRESA_BASE = [
   'NU PAGAMENTOS',
 ];
 
-const TOKENS_EMPRESA_NICHO = [
-  'CLINICA',
-  'ESTETICA',
-  'SAUDE',
-  'DISTRIBUIDORA',
-  'ODONTOLOGICOS',
-  'HOSPITALA',
-  'ASSESSORIA',
-  'FARMA',
-  'SERVICOS ONLINE',
-  'FACEBOOK',
-  'META',
-  'QUANTITY',
-  'ALEXIA',
-];
-
 const TOKENS_PESSOAL_DIRETO = ['99 TECNOLOGIA', 'UBER'];
 const TOKENS_EMPRESA_DIRETO = ['NU PAGAMENTOS', 'SANTANDER', 'BOLETO'];
 
@@ -71,7 +55,7 @@ function pareceNomePessoaFisica(descricaoNormalizada: string): boolean {
  *
  * Ordem de sinais:
  * 1. Tokens fortes de pessoal/empresa por contraparte
- * 2. Tokens corporativos (gerais + nicho clinica/estetica)
+ * 2. Tokens corporativos gerais
  * 3. Sinal de nome PF combinado com direção da transação
  * 4. Desempate por faixa/formato de valor
  *
@@ -88,7 +72,6 @@ export function classificarPixComHeuristica(
   let pontosPessoal = 0;
 
   const temTokenEmpresaBase = contemAlgumToken(descricao, TOKENS_EMPRESA_BASE);
-  const temTokenEmpresaNicho = contemAlgumToken(descricao, TOKENS_EMPRESA_NICHO);
 
   if (tipo === 'saida' && contemAlgumToken(descricao, TOKENS_PESSOAL_DIRETO)) {
     pontosPessoal += 3;
@@ -102,11 +85,7 @@ export function classificarPixComHeuristica(
     pontosEmpresa += 3;
   }
 
-  if (temTokenEmpresaNicho) {
-    pontosEmpresa += 2;
-  }
-
-  const nomePessoaFisica = !temTokenEmpresaBase && !temTokenEmpresaNicho && pareceNomePessoaFisica(descricao);
+  const nomePessoaFisica = !temTokenEmpresaBase && pareceNomePessoaFisica(descricao);
   if (nomePessoaFisica) {
     if (tipo === 'saida') {
       pontosPessoal += 2;

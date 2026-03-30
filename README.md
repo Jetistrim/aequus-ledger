@@ -48,6 +48,40 @@ Acesse em desenvolvimento: **http://localhost:5173**
 
 ---
 
+## Regras Via JSON (seed-*.json)
+
+As regras de classificação são carregadas automaticamente a partir de arquivos `seed-*.json` no diretório `config/`.
+
+- Local no repositório: `config/`
+- Local após descompactar o pacote portátil: `config/` na raiz da pasta descompactada
+- Exemplo de arquivos: `seed-generico.json`, `seed-estetica.json`, `seed-alexia.json`
+
+Formato esperado:
+
+```json
+{
+	"perfil": "generico",
+	"descricao": "Regras de exemplo",
+	"regras": [
+		{
+			"palavraChave": "IFOOD,RAPPI",
+			"categoria": "PESSOAL",
+			"subCategoria": "Alimentacao",
+			"prioridade": 1
+		}
+	]
+}
+```
+
+Regras de carga:
+
+- O backend procura automaticamente qualquer arquivo com padrão `seed-*.json`.
+- O carregamento é idempotente por `upsert` no Prisma (chave composta de regra).
+- Em conflito, o registro existente no banco é mantido e não é duplicado.
+- Se quiser apontar para outra pasta, use `SEED_CONFIG_DIR`.
+
+---
+
 ## Comandos Docker
 
 ```bash
@@ -146,6 +180,9 @@ cd backend
 npm install
 npm run dev          # executa seed e sobe servidor
 ```
+
+Observação: o banco local de desenvolvimento é persistente em `backend/.runtime/data/conciliacao.sqlite`.
+Para reset completo do histórico local, remova esse arquivo antes de subir novamente.
 
 ### Frontend
 

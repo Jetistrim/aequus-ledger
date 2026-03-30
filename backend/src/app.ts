@@ -10,6 +10,10 @@ export function createApp() {
 
   app.disable('x-powered-by');
 
+  app.get('/favicon.ico', (_req, res) => {
+    res.status(204).end();
+  });
+
   app.use(helmet({
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   }));

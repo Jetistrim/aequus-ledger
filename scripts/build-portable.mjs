@@ -78,7 +78,14 @@ copyDir(path.join(frontendDir, 'dist'), path.join(portableDir, 'dist', 'public')
 console.log('\n=== Copiando prisma ===');
 copyDir(path.join(backendDir, 'prisma'), path.join(portableDir, 'prisma'));
 
-// ─── 5.1. Copiar prisma.config.ts (Prisma 7) ──────────────────────────────────
+// ─── 5.1. Copiar configuração de seed JSON ────────────────────────────────────
+const configDir = path.join(rootDir, 'config');
+if (fs.existsSync(configDir)) {
+  console.log('\n=== Copiando config de seeds ===');
+  copyDir(configDir, path.join(portableDir, 'config'));
+}
+
+// ─── 5.2. Copiar prisma.config.ts (Prisma 7) ──────────────────────────────────
 const prismaConfigSrc = path.join(backendDir, 'prisma.config.ts');
 if (fs.existsSync(prismaConfigSrc)) {
   fs.copyFileSync(prismaConfigSrc, path.join(portableDir, 'prisma.config.ts'));

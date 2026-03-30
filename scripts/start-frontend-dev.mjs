@@ -47,19 +47,26 @@ function readInstanceMetadata(filePath) {
 }
 
 function spawnFrontend(proxyTarget) {
-  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  const isWindows = process.platform === 'win32';
+  const npmCommand = 'npm';
   const child = spawn(
     npmCommand,
-    ['run', 'dev', '--prefix', 'frontend'],
+    ['--prefix', 'frontend', 'run', 'dev'],
     {
       cwd: process.cwd(),
       stdio: 'inherit',
+      shell: isWindows,
       env: {
         ...process.env,
         VITE_API_PROXY_TARGET: proxyTarget,
       },
     },
   );
+
+  child.on('error', (error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
 
   child.on('exit', (code) => {
     process.exit(code ?? 0);

@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.1.2 - 2026-03-30
+
+### Added
+
+- suporte a alimentação de regras via arquivos `seed-*.json` na pasta `config/`
+- carregamento automático de múltiplos arquivos de seed por padrão de nome (sem lista hardcoded)
+- testes unitários do loader de seed JSON (`backend/tests/seed-loader.test.ts`)
+- inclusão da pasta `config/` no empacotamento `portable/` e `release/`
+
+### Changed
+
+- seed do backend centralizado em `backend/src/seed.ts` com wrapper fino em `backend/prisma/seed.ts`
+- persistência idempotente de regras com `upsert` e manutenção do registro existente em conflito
+- documentação atualizada para fluxo de regras por JSON e localização no pacote descompactado
+
+### Fixed
+
+- erro `spawn EINVAL` no launcher do frontend em Windows durante `npm run dev`
+- ruído de CSP para `/favicon.ico` com resposta explícita `204` no backend
+- remoção de termos hardcoded específicos de nicho/cliente no motor heurístico
+
 ## 2.0.0 - 2026-03-28
 
 ### Breaking Changes

@@ -75,6 +75,13 @@ copyDir(path.join(frontendDir, 'dist'), path.join(releaseDir, 'dist', 'public'))
 console.log('\n=== Copiando prisma ===');
 copyDir(path.join(backendDir, 'prisma'), path.join(releaseDir, 'prisma'));
 
+// ─── 5.1. Copiar configuração de seed JSON ────────────────────────────────────
+const configDir = path.join(rootDir, 'config');
+if (fs.existsSync(configDir)) {
+  console.log('\n=== Copiando config de seeds ===');
+  copyDir(configDir, path.join(releaseDir, 'config'));
+}
+
 // ─── 6. Copiar package.json e package-lock.json ───────────────────────────────
 console.log('\n=== Copiando package.json ===');
 fs.copyFileSync(

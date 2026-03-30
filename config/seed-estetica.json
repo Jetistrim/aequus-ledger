@@ -1,0 +1,18 @@
+{
+  "perfil": "estetica",
+  "descricao": "Regras de nicho para o mercado de estetica",
+  "regras": [
+    {
+      "palavraChave": "CLINICA,ESTETICA,HARMONIZACAO,BOTOX,PREENCHIMENTO",
+      "categoria": "EMPRESA",
+      "subCategoria": "Servico de Estetica",
+      "prioridade": 1
+    },
+    {
+      "palavraChave": "MICROPIGMENTACAO,DESIGN DE SOBRANCELHA,LIMPEZA DE PELE,LASER",
+      "categoria": "EMPRESA",
+      "subCategoria": "Servico de Estetica",
+      "prioridade": 1
+    }
+  ]
+}

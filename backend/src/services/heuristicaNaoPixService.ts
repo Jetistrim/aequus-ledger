@@ -1,22 +1,6 @@
 import { normalizeForMatching } from '../utils/normalization';
 import { DirecaoTransacao, ResultadoHeuristica } from './heuristicaCommon';
 
-const TOKENS_EMPRESA_NICHO = [
-  'CLINICA',
-  'ESTETICA',
-  'SAUDE',
-  'DISTRIBUIDORA',
-  'ODONTOLOGICOS',
-  'HOSPITALA',
-  'ASSESSORIA',
-  'FARMA',
-  'SERVICOS ONLINE',
-  'FACEBOOK',
-  'META',
-  'QUANTITY',
-  'ALEXIA',
-];
-
 const TOKENS_NAO_PIX_GATILHO = [
   'DEBITO',
   'JUROS',
@@ -100,9 +84,7 @@ export function classificarNaoPixComHeuristica(
   let pontosPessoal = 0;
 
   const temTokenPessoal = contemAlgumToken(alvo, TOKENS_NAO_PIX_PESSOAL);
-  const temTokenEmpresa =
-    contemAlgumToken(alvo, TOKENS_NAO_PIX_EMPRESA) ||
-    contemAlgumToken(alvo, TOKENS_EMPRESA_NICHO);
+  const temTokenEmpresa = contemAlgumToken(alvo, TOKENS_NAO_PIX_EMPRESA);
 
   if (temTokenEmpresa) {
     pontosEmpresa += 3;

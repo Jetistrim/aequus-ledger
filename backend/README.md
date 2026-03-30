@@ -7,7 +7,7 @@ API REST em Node.js + Express 5 + TypeScript responsável por receber extratos b
 ## Pré-requisitos
 
 - Node.js 20+
-- PostgreSQL 16+ (ou rodar via Docker Compose na raiz)
+- SQLite (usado automaticamente via arquivo local)
 
 ---
 
@@ -16,7 +16,7 @@ API REST em Node.js + Express 5 + TypeScript responsável por receber extratos b
 Crie o arquivo `backend/.env`:
 
 ```env
-DATABASE_URL="postgresql://postgres:postgres@localhost:5432/conciliacao_financeira"
+DATABASE_URL="file:./.runtime/data/conciliacao.sqlite"
 PORT=3001
 CORS_ORIGIN=http://localhost:5173
 EXPORTS_DIR=./exports
@@ -29,19 +29,56 @@ MAX_TOTAL_UPLOAD_SIZE_MB=100
 ## Scripts
 
 ```bash
-npm run dev          # modo volátil: reseta SQLite local, executa seed e sobe o servidor
-npm run dev:postgres # servidor em modo watch usando DATABASE_URL (PostgreSQL)
+npm run dev          # usa SQLite local persistente, executa migrate + seed e sobe o servidor
+npm run dev:volatile # alias do fluxo de desenvolvimento local
 npm run build        # compila TypeScript para dist/
 npm run start        # executa dist/index.js (produção)
 npm run db:migrate   # aplica migrações pendentes (prisma migrate deploy)
 npm run seed         # popula regras de classificação iniciais
 ```
 
-No modo volátil (`npm run dev`), o backend usa `file:./prisma/dev.db` e faz reset do banco a cada inicialização. Isso garante ambiente limpo para depuração sem persistir dados entre execuções.
+No modo local (`npm run dev`), o backend usa `backend/.runtime/data/conciliacao.sqlite` e mantém dados entre execuções.
+Para reset completo do histórico local, remova `backend/.runtime/data/conciliacao.sqlite` com o backend parado.
 
 Mesmo em desenvolvimento, o bootstrap do servidor agora normaliza paths de runtime e tenta fallback automático de porta quando `3001` já estiver ocupada. A URL efetiva da instância ativa é publicada em `backend/.runtime/active-instance.json`.
 
 O script `start:docker` é usado exclusivamente pelo container Docker — ele roda migrate + seed + servidor em sequência.
+
+---
+
+## Alimentação de regras por seed-*.json
+
+O seed não usa mais lista hardcoded no código. O backend procura automaticamente arquivos com padrão `seed-*.json` na pasta `config/`.
+
+Ordem de busca de diretório:
+
+1. `SEED_CONFIG_DIR` (se definido)
+2. `./config`
+3. `../config`
+4. caminhos equivalentes ao runtime compilado
+
+Cada arquivo precisa conter um array `regras` com itens no formato:
+
+```json
+{
+  "palavraChave": "IFOOD,RAPPI",
+  "categoria": "PESSOAL",
+  "subCategoria": "Alimentacao",
+  "prioridade": 1
+}
+```
+
+Validações:
+
+- `palavraChave` obrigatória
+- `categoria` em `PESSOAL` ou `EMPRESA`
+- `prioridade` inteiro >= 0
+
+Persistência:
+
+- gravação idempotente via `prisma.regra.upsert()`
+- chave única composta: `palavraChave + categoria + prioridade`
+- em conflito, o registro existente é mantido (`update: {}`)
 
 ---
 
@@ -52,12 +89,12 @@ backend/
 ├── prisma.config.ts          # Prisma 7: datasource via DATABASE_URL
 ├── prisma/
 │   ├── schema.prisma         # Modelos: Transacao, Regra + enums
-│   ├── seed.ts               # Regras iniciais com subcategorias
+│   ├── seed.ts               # Wrapper de seed (chama src/seed.ts)
 │   └── migrations/
 ├── src/
 │   ├── index.ts              # Entry point: CORS, rotas, health check
 │   ├── lib/
-│   │   └── prisma.ts         # Singleton PrismaClient (adapter pg)
+│   │   └── prisma.ts         # Singleton PrismaClient (adapter better-sqlite3)
 │   ├── controllers/
 │   │   ├── uploadController.ts       # POST /api/upload
 │   │   ├── transacoesController.ts   # GET/PATCH/DELETE /api/transacoes
@@ -127,11 +164,11 @@ backend/
 
 O Prisma 7 separa a configuração da conexão do schema. A URL de conexão é definida exclusivamente em `prisma.config.ts` — **o `schema.prisma` não inclui `datasource { url }`**.
 
-O `PrismaClient` usa `@prisma/adapter-pg` como driver:
+O `PrismaClient` usa `@prisma/adapter-better-sqlite3` como driver:
 
 ```typescript
 // src/lib/prisma.ts
-const adapter = new PrismaPg({ connectionString: process.env['DATABASE_URL']! });
+const adapter = new PrismaBetterSqlite3({ url: process.env['DATABASE_URL']! });
 export const prisma = new PrismaClient({ adapter });
 ```
 

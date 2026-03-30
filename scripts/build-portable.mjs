@@ -78,6 +78,12 @@ copyDir(path.join(frontendDir, 'dist'), path.join(portableDir, 'dist', 'public')
 console.log('\n=== Copiando prisma ===');
 copyDir(path.join(backendDir, 'prisma'), path.join(portableDir, 'prisma'));
 
+// ─── 5.1. Copiar prisma.config.ts (Prisma 7) ──────────────────────────────────
+const prismaConfigSrc = path.join(backendDir, 'prisma.config.ts');
+if (fs.existsSync(prismaConfigSrc)) {
+  fs.copyFileSync(prismaConfigSrc, path.join(portableDir, 'prisma.config.ts'));
+}
+
 // ─── 6. Copiar package.json e package-lock.json ───────────────────────────────
 console.log('\n=== Copiando package.json ===');
 fs.copyFileSync(

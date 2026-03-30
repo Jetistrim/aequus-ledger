@@ -19,6 +19,7 @@ export function createApp() {
   }));
   app.use(cors({
     origin: process.env['CORS_ORIGIN'] || 'http://localhost:5173',
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   }));
   app.use(express.json({ limit: '1mb' }));

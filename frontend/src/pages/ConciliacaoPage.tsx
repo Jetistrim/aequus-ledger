@@ -3,6 +3,7 @@ import { TotalizadoresBar } from '../components/TotalizadoresBar';
 import { FiltroRapido } from '../components/FiltroRapido';
 import { TabelaConciliacao } from '../components/TabelaConciliacao';
 import { BotaoGerarExtratos } from '../components/BotaoGerarExtratos';
+import { BotaoLogout } from '../components/BotaoLogout';
 import { useTransacoes } from '../hooks/useTransacoes';
 
 type Filtro = 'todos' | 'indefinidos';
@@ -226,6 +227,7 @@ export function ConciliacaoPage() {
             >
               ⚙️ Gerenciar Regras
             </a>
+            <BotaoLogout />
           </div>
         </div>
       </header>

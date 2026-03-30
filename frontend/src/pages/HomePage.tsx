@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { UploadZone } from '../components/UploadZone';
 import { RevisaoArquivos } from '../components/RevisaoArquivos';
+import { BotaoLogout } from '../components/BotaoLogout';
 import { RespostaUpload } from '../types';
 
 type Passo = 'upload' | 'revisao';
@@ -53,6 +54,7 @@ export function HomePage() {
             >
               ⚙️ Gerenciar Regras
             </a>
+            <BotaoLogout />
           </div>
         </div>
       </header>

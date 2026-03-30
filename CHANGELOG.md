@@ -1,5 +1,24 @@
 # Changelog
 
+## 2.1.3 - 2026-03-30
+
+### Added
+
+- autenticação por sessão com cookie `HttpOnly` no backend (`/api/auth/login`, `/api/auth/me`, `/api/auth/logout`)
+- middleware de proteção para rotas sensíveis da API (`/api/upload`, `/api/transacoes`, `/api/regras`, `/api/export`)
+- tela de login no frontend com validação de sessão ao carregar a aplicação (`AuthGate`)
+- ação de logout nas telas principais para encerramento explícito da sessão
+
+### Changed
+
+- cliente HTTP do frontend passa a enviar credenciais (`withCredentials`) para suportar sessão
+- CORS do backend passa a permitir credenciais para o fluxo autenticado
+- documentação atualizada com variáveis de ambiente de autenticação (`AUTH_*`)
+
+### Security
+
+- bloqueio de acesso direto por aba aberta no navegador sem autenticação prévia
+
 ## 2.1.2 - 2026-03-30
 
 ### Added

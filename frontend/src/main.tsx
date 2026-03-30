@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import './index.css'
+import { AuthGate } from './components/AuthGate'
 import { HomePage } from './pages/HomePage'
 import { ConciliacaoPage } from './pages/ConciliacaoPage'
 import { RegrasPage } from './pages/RegrasPage'
@@ -18,6 +19,8 @@ const App = path.startsWith('/regras')
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <App />
+    <AuthGate>
+      <App />
+    </AuthGate>
   </React.StrictMode>,
 )

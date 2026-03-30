@@ -22,6 +22,10 @@ CORS_ORIGIN=http://localhost:5173
 EXPORTS_DIR=./exports
 MAX_FILE_SIZE_MB=10
 MAX_TOTAL_UPLOAD_SIZE_MB=100
+AUTH_ENABLED=true
+AUTH_USERNAME=admin
+AUTH_PASSWORD=troque-esta-senha
+AUTH_SESSION_HOURS=8
 ```
 
 ---
@@ -134,6 +138,9 @@ backend/
 
 | Método | Rota | Descrição |
 |---|---|---|
+| `POST` | `/api/auth/login` | Autentica usuário e inicia sessão por cookie |
+| `GET` | `/api/auth/me` | Verifica se a sessão atual está autenticada |
+| `POST` | `/api/auth/logout` | Encerra a sessão atual |
 | `POST` | `/api/upload` | Recebe até 50 arquivos no campo `arquivos`, com limite total combinado de 100MB |
 | `GET` | `/api/transacoes` | Lista todas as transações |
 | `PATCH` | `/api/transacoes/:id` | Atualiza classificação e/ou observação |
@@ -144,6 +151,12 @@ backend/
 | `DELETE` | `/api/regras/:id` | Remove regra |
 | `POST` | `/api/export` | Gera e retorna os dois CSVs |
 | `GET` | `/api/health` | Health check |
+
+Observações de autenticação:
+
+- As rotas de negócio (`/api/upload`, `/api/transacoes`, `/api/regras`, `/api/export`) exigem sessão válida.
+- A sessão usa cookie `HttpOnly` com `sameSite=lax`.
+- Em ambiente de teste (`NODE_ENV=test`), a autenticação é desabilitada por padrão para não quebrar a suíte atual.
 
 ### Resposta de upload
 

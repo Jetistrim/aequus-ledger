@@ -14,7 +14,14 @@ import {
 
 const api = axios.create({
   baseURL: '/api',
+  withCredentials: true,
 });
+
+export interface SessaoAuth {
+  autenticado: boolean;
+  usuario?: string;
+  autenticacaoHabilitada?: boolean;
+}
 
 /**
  * Detalhe de erro vinculado a um campo específico retornado pela API.
@@ -77,6 +84,27 @@ export function formatApiErrorMessage(error: unknown, fallbackMessage: string): 
  */
 export function toApiRequestError(error: unknown, fallbackMessage: string): ApiRequestError {
   return parseApiError(error, fallbackMessage);
+}
+
+export async function loginSistema(usuario: string, senha: string): Promise<SessaoAuth> {
+  const { data } = await api.post<SessaoAuth>('/auth/login', { usuario, senha });
+  return data;
+}
+
+export async function verificarSessao(): Promise<SessaoAuth> {
+  try {
+    const { data } = await api.get<SessaoAuth>('/auth/me');
+    return data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 401) {
+      return { autenticado: false };
+    }
+    throw error;
+  }
+}
+
+export async function logoutSistema(): Promise<void> {
+  await api.post('/auth/logout');
 }
 
 export async function uploadArquivo(file: File): Promise<RespostaUpload> {

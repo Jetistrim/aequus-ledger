@@ -5,10 +5,12 @@ import fs from 'fs';
 import path from 'path';
 
 import { createApp } from './app';
+import authRoutes from './routes/authRoutes';
 import uploadRoutes from './routes/uploadRoutes';
 import transacoesRoutes from './routes/transacoesRoutes';
 import regrasRoutes from './routes/regrasRoutes';
 import exportRoutes from './routes/exportRoutes';
+import { exigirAutenticacao } from './middlewares/authMiddleware';
 import { errorHandler } from './middlewares/errorHandler';
 import { prisma } from './lib/prisma';
 import {
@@ -35,11 +37,13 @@ const app = createApp();
 // Static assets before API routes so concrete files are served first.
 mountStaticAssets(app);
 
+app.use('/api/auth', authRoutes);
+app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+app.use('/api', exigirAutenticacao);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/transacoes', transacoesRoutes);
 app.use('/api/regras', regrasRoutes);
 app.use('/api/export', exportRoutes);
-app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
 // SPA fallback after API routes so /api/* is never intercepted.
 mountSpaFallback(app);

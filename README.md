@@ -210,7 +210,25 @@ PORT=3001
 CORS_ORIGIN=http://localhost:5173
 MAX_FILE_SIZE_MB=10
 MAX_TOTAL_UPLOAD_SIZE_MB=100
+AUTH_ENABLED=true
+AUTH_USERNAME=admin
+AUTH_PASSWORD=troque-esta-senha
+AUTH_SESSION_HOURS=8
 ```
+
+### Autenticação de acesso
+
+- O frontend exige login antes de exibir upload, conciliação e regras.
+- A API protege as rotas sensíveis com sessão via cookie `HttpOnly`.
+- Endpoints públicos: `/api/health` e `/api/auth/*`.
+
+Endpoints de autenticação:
+
+- `POST /api/auth/login`
+- `GET /api/auth/me`
+- `POST /api/auth/logout`
+
+Se `AUTH_ENABLED=false`, o backend libera o acesso sem login (útil para testes locais controlados).
 
 ---
 

@@ -2,7 +2,7 @@ import fs from 'fs';
 import os from 'os';
 import path from 'path';
 
-export type RuntimeMode = 'local' | 'docker' | 'packaged';
+export type RuntimeMode = 'local' | 'docker' | 'packaged' | 'portable';
 
 export interface RuntimePaths {
   mode: RuntimeMode;
@@ -113,11 +113,15 @@ export function resetRuntimePathsForTests(): void {
 
 function detectRuntimeMode(): RuntimeMode {
   const explicitMode = process.env['APP_RUNTIME_MODE'];
-  if (explicitMode === 'local' || explicitMode === 'docker' || explicitMode === 'packaged') {
+  if (explicitMode === 'local' || explicitMode === 'docker' || explicitMode === 'packaged' || explicitMode === 'portable') {
     return explicitMode;
   }
 
-  if (process.env['PACKAGED_RUNTIME'] === 'true' || process.env['CAXA'] === 'true') {
+  if (process.env['PORTABLE_RUNTIME'] === 'true') {
+    return 'portable';
+  }
+
+  if (process.env['PACKAGED_RUNTIME'] === 'true') {
     return 'packaged';
   }
 
@@ -141,6 +145,10 @@ function resolveRuntimeRoot(mode: RuntimeMode): string {
 
   if (mode === 'packaged') {
     return resolvePackagedRuntimeRoot();
+  }
+
+  if (mode === 'portable') {
+    return path.resolve(process.cwd());
   }
 
   if (mode === 'docker') {
@@ -176,7 +184,7 @@ function resolveDirectoryOverride(
     return path.normalize(rawValue);
   }
 
-  const anchor = mode === 'packaged' ? runtimeRoot : process.cwd();
+  const anchor = (mode === 'packaged' || mode === 'portable') ? runtimeRoot : process.cwd();
   return path.resolve(anchor, rawValue);
 }
 
@@ -203,7 +211,7 @@ function resolveDatabaseFile(
     return path.normalize(rawTarget);
   }
 
-  const anchor = mode === 'packaged' ? runtimeRoot : process.cwd();
+  const anchor = (mode === 'packaged' || mode === 'portable') ? runtimeRoot : process.cwd();
   return path.resolve(anchor, rawTarget);
 }
 

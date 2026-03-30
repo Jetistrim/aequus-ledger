@@ -78,7 +78,7 @@ async function startServer(): Promise<void> {
 
     console.log(`Servidor rodando em ${instanceMetadata.url}`);
 
-    if (runtimePaths.mode === 'packaged') {
+    if (runtimePaths.mode === 'packaged' || runtimePaths.mode === 'portable') {
       openBrowserToUrl(instanceMetadata.url);
       startTray({
         url: instanceMetadata.url,
@@ -233,7 +233,7 @@ async function handleExistingInstance(existingMetadata: ActiveInstanceMetadata |
 
   if (metadata?.url) {
     console.log(`Instância já está em execução em ${metadata.url}.`);
-    if (runtimePaths.mode === 'packaged') {
+    if (runtimePaths.mode === 'packaged' || runtimePaths.mode === 'portable') {
       openBrowserToUrl(metadata.url);
     }
   } else {

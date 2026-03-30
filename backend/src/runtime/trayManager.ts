@@ -38,7 +38,7 @@ export interface TrayOptions {
  * deixando o servidor ativo e acessível pela URL registrada nos metadados.
  *
  * O ícone é gravado em disco no primeiro uso a partir do base64 embutido no
- * código, para não depender de caminhos externos ao executável caxa.
+ * código, para não depender de caminhos externos à pasta portátil.
  *
  * Estrutura do menu (seq_id):
  * - 0 → "Abrir no navegador"

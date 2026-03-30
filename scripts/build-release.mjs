@@ -2,8 +2,8 @@
  * build-release.mjs
  *
  * Prepara o diretório `release/` com todos os artefatos necessários para
- * gerar o executável caxa. Deve ser executado no sistema operacional alvo
- * (não há cross-compilation confiável com módulos nativos como better-sqlite3).
+ * gerar uma build completa de runtime (fluxo legado). Deve ser executado no sistema operacional
+ * alvo (não há cross-compilation confiável com módulos nativos como better-sqlite3).
  *
  * Fluxo:
  * 1. Compila o backend (TypeScript → dist/).
@@ -104,4 +104,4 @@ if (fs.existsSync(prismaConfigDist)) {
 }
 
 console.log(`\n✓ Release pronto em: ${releaseDir}`);
-console.log('  Execute "npm run package:caxa" para gerar o executável.\n');
+console.log('  Execute "npm run release:portable" para gerar o ZIP portátil.\n');

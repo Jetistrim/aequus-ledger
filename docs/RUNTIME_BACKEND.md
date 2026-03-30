@@ -107,5 +107,5 @@ PUBLIC_HOST=127.0.0.1
 
 ## Documentação Relacionada
 
-- [PACKAGING.md](./PACKAGING.md) — empacotamento com caxa, diretórios de
-  dados por plataforma, bandeja do sistema, abertura automática do navegador.
+- [PACKAGING.md](./PACKAGING.md) — empacotamento portátil ZIP, diretórios de
+  dados, bandeja do sistema, abertura automática do navegador.

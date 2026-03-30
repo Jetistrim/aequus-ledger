@@ -5,7 +5,7 @@
  * (`rootDir: ./src`), produzindo `dist/seed.js` com caminhos de importação válidos.
  *
  * Para uso em desenvolvimento via ts-node, veja `prisma/seed.ts` (thin wrapper).
- * Para uso em produção (Docker, executável caxa) e testes compilados, usar este.
+ * Para uso em produção (Docker, pasta portátil) e testes compilados, usar este.
  */
 import { prisma } from './lib/prisma';
 

@@ -1,8 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { Classificacao, Prisma, Tipo } from '@prisma/client';
+import { Classificacao, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
 import { enrichTransacoes } from '../utils/responseHelpers';
+import { listarTransacoesQuerySchema } from '../validators/querySchemas';
 
 const classificacaoSchema = z.enum(['PESSOAL', 'EMPRESA', 'INDEFINIDO']);
 
@@ -62,26 +63,9 @@ function calcularSaldoLiquido(totalEntradas: number, totalSaidas: number): numbe
 
 export async function listarTransacoes(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const paginaQuery = Number(req.query.pagina ?? 1);
-    const limiteQuery = Number(req.query.limite ?? 25);
-    const pagina = Number.isFinite(paginaQuery) && paginaQuery > 0 ? Math.floor(paginaQuery) : 1;
-    const limite = Number.isFinite(limiteQuery)
-      ? Math.min(100, Math.max(1, Math.floor(limiteQuery)))
-      : 25;
-
-    const classificacoesValidas: Classificacao[] = ['PESSOAL', 'EMPRESA', 'INDEFINIDO'];
-    const tiposValidos: Tipo[] = ['ENTRADA', 'SAIDA'];
-
-    const classificacaoQuery = String(req.query.classificacao ?? '').toUpperCase();
-    const tipoQuery = String(req.query.tipo ?? '').toUpperCase();
-    const busca = String(req.query.busca ?? '').trim();
-
-    const classificacao = classificacoesValidas.includes(classificacaoQuery as Classificacao)
-      ? (classificacaoQuery as Classificacao)
-      : undefined;
-    const tipo = tiposValidos.includes(tipoQuery as Tipo)
-      ? (tipoQuery as Tipo)
-      : undefined;
+    const parsedQuery = listarTransacoesQuerySchema.parse(req.query);
+    const { pagina, limite, classificacao, tipo } = parsedQuery;
+    const busca = parsedQuery.busca ?? '';
 
     const where: Prisma.TransacaoWhereInput = {};
     if (classificacao) {
@@ -104,7 +88,22 @@ export async function listarTransacoes(req: Request, res: Response, next: NextFu
 
     const totalRegistros = await prisma.transacao.count({ where });
     const totalPaginas = Math.max(1, Math.ceil(totalRegistros / limite));
-    const paginaAtual = Math.min(pagina, totalPaginas);
+    
+    if (pagina > totalPaginas) {
+      res.status(400).json({
+        erro: `Página ${pagina} não existe. Total de páginas: ${totalPaginas}.`,
+        codigo: 'INVALID_PAGE',
+        detalhes: [
+          {
+            campo: 'pagina',
+            mensagem: `Página solicitada (${pagina}) excede o total de páginas disponíveis (${totalPaginas}).`,
+          },
+        ],
+      });
+      return;
+    }
+    
+    const paginaAtual = pagina;
     const skip = (paginaAtual - 1) * limite;
 
     const transacoes = await prisma.transacao.findMany({

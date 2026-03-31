@@ -7,8 +7,32 @@ import { getLinhaClassName, shouldShowReviewTag } from './conciliacaoVisualState
 
 interface Props {
   transacoes: Transacao[];
+  carregando?: boolean;
   onClassificar: (id: string, classificacao: Classificacao) => Promise<void>;
   onAtualizarTransacao: (id: string, payload: AtualizacaoTransacaoPayload) => Promise<void>;
+}
+
+// Larguras da coluna Descrição por linha — arrays estáticos fora do componente,
+// alocados uma vez no módulo para não serem recriados a cada render.
+const SKELETON_WIDTHS_DESC = ['w-2/3', 'w-3/4', 'w-1/2', 'w-4/5', 'w-2/3', 'w-3/5', 'w-3/4', 'w-5/6'] as const;
+
+function TabelaSkeletonLinhas() {
+  return (
+    <>
+      {SKELETON_WIDTHS_DESC.map((w, i) => (
+        <tr key={i} aria-hidden="true">
+          <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+          <td className="px-4 py-3"><div className={`h-4 ${w} bg-gray-200 rounded animate-pulse`} /></td>
+          <td className="px-4 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse ml-auto" /></td>
+          <td className="px-4 py-3 text-center"><div className="h-5 w-14 bg-gray-200 rounded-full animate-pulse mx-auto" /></td>
+          <td className="px-4 py-3 text-center"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse mx-auto" /></td>
+          <td className="px-4 py-3 text-center"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse mx-auto" /></td>
+          <td className="px-4 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+          <td className="px-4 py-3 text-center"><div className="h-6 w-16 bg-gray-200 rounded animate-pulse mx-auto" /></td>
+        </tr>
+      ))}
+    </>
+  );
 }
 
 const badgeClassificacao: Record<Classificacao, string> = {
@@ -24,8 +48,37 @@ function contemIndicadorPix(descricao: string): boolean {
 /**
  * Tabela principal de conciliação com atalhos de classificação e edição completa por modal.
  */
-export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarTransacao }: Props) {
+export function TabelaConciliacao({ transacoes, carregando = false, onClassificar, onAtualizarTransacao }: Props) {
   const [transacaoEditando, setTransacaoEditando] = useState<Transacao | null>(null);
+
+  // Skeleton de carga inicial: sem dados ainda, substitui o estado vazio
+  if (carregando && transacoes.length === 0) {
+    return (
+      <div
+        className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm"
+        aria-busy="true"
+        aria-label="Carregando transações"
+      >
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Data</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Descrição</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Valor</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tipo</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Classificação</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Tipo Desp.</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Identificador</th>
+              <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-100">
+            <TabelaSkeletonLinhas />
+          </tbody>
+        </table>
+      </div>
+    );
+  }
 
   if (transacoes.length === 0) {
     return (
@@ -40,7 +93,7 @@ export function TabelaConciliacao({ transacoes, onClassificar, onAtualizarTransa
 
   return (
     <>
-      <div className="overflow-x-auto rounded-xl border border-gray-200 shadow-sm">
+      <div className={`overflow-x-auto rounded-xl border border-gray-200 shadow-sm transition-opacity duration-200${carregando ? ' opacity-50 pointer-events-none' : ''}`}>
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="bg-gray-50">
             <tr>

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.1.5 - 2026-03-31
+
+### Added
+
+- sincronização de estado via query params nas páginas principais (`/`, `/conciliacao`, `/regras`) com utilitários dedicados em `frontend/src/utils/queryParamUtils.ts`
+- testes unitários para serialização e parsing de filtros em URL (`frontend/src/utils/queryParamUtils.test.tsx`)
+- suite E2E inicial para fluxo SPA e persistência de URL (`frontend/tests/e2e/spa-url-sync.spec.ts`)
+- skeleton loading leve na tabela de regras e na tabela de conciliação para melhorar percepção de carregamento
+
+### Changed
+
+- migração do roteamento frontend para `react-router-dom` com navegação SPA (sem reload completo)
+- sanitização centralizada de `req.query` no backend com schemas Zod em `backend/src/validators/querySchemas.ts`
+- endpoint de listagem de transações agora retorna `400 INVALID_PAGE` quando a página solicitada excede o total disponível
+
+### Fixed
+
+- validação tipada para download de arquivo de exportação com fallback seguro para query inválida
+- correção de tipagem no E2E Playwright removendo uso de API inexistente (`page.internals()`)
+
 ## 2.1.4 - 2026-03-31
 
 ### Fixed

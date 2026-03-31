@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UploadZone } from '../components/UploadZone';
 import { RevisaoArquivos } from '../components/RevisaoArquivos';
 import { BotaoLogout } from '../components/BotaoLogout';
@@ -14,10 +15,37 @@ const CHAVE_RESUMO_UPLOAD = 'conciliacao:resumo-upload';
  * @remarks
  * Após o processamento com sucesso, persiste um resumo temporário e redireciona
  * para a página de conciliação.
+ * 
+ * O passo (upload/revisao) é persistido via query param, mas File[] não pode ser restaurado
+ * após refresh por restrição do navegador. Se abrir em revisao sem arquivos, volta para upload.
  */
 export function HomePage() {
-  const [passo, setPasso] = useState<Passo>('upload');
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Inicializar passo a partir da URL, com fallback para 'upload'
+  const passoUrl = searchParams.get('passo') as Passo | null;
+  const [passo, setPasso] = useState<Passo>(passoUrl === 'revisao' ? 'revisao' : 'upload');
   const [arquivosSelecionados, setArquivosSelecionados] = useState<File[]>([]);
+
+  // Sincronizar passo com URL
+  useEffect(() => {
+    if (passo === 'revisao') {
+      setSearchParams({ passo: 'revisao' }, { replace: true });
+    } else {
+      // Limpar query params quando volta para upload
+      setSearchParams({}, { replace: true });
+    }
+  }, [passo, setSearchParams]);
+
+  // Se abrir com passo=revisao mas sem arquivos (após refresh), voltar para upload com aviso
+  useEffect(() => {
+    if (passo === 'revisao' && arquivosSelecionados.length === 0 && passoUrl === 'revisao') {
+      // Usuário tentou voltar a revisao após refresh, mas os arquivos foram perdidos
+      setPasso('upload');
+      // Opcional: mostrar toast indicando que precisa fazer upload novamente
+    }
+  }, []);
 
   function handleArquivosProntos(files: File[]) {
     setArquivosSelecionados(files);
@@ -33,7 +61,7 @@ export function HomePage() {
         indefinidas: resposta.indefinidas,
       }),
     );
-    window.location.assign('/conciliacao');
+    navigate('/conciliacao');
   }
 
   return (
@@ -44,12 +72,20 @@ export function HomePage() {
           <div className="flex items-center gap-4">
             <a
               href="/conciliacao"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/conciliacao');
+              }}
               className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               📋 Ir para Tabela
             </a>
             <a
               href="/regras"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/regras');
+              }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               ⚙️ Gerenciar Regras

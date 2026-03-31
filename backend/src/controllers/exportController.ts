@@ -3,6 +3,7 @@ import path from 'path';
 import { z } from 'zod';
 import { ExportFormat, gerarExtratos } from '../services/exportService';
 import { resolveRuntimePaths } from '../runtime/runtimePaths';
+import { downloadArquivoQuerySchema } from '../validators/querySchemas';
 
 const exportPayloadSchema = z.object({
   formato: z.enum(['csv', 'xlsx']).optional(),
@@ -38,11 +39,13 @@ export async function exportarExtratos(req: Request, res: Response, next: NextFu
 
 export async function downloadArquivo(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const fileName = req.query.file as string;
-    if (!fileName || path.basename(fileName) !== fileName) {
+    const query = downloadArquivoQuerySchema.safeParse(req.query);
+    if (!query.success) {
       res.status(400).json({ erro: 'Nome de arquivo inválido.' });
       return;
     }
+
+    const fileName = query.data.file;
 
     const runtimePaths = resolveRuntimePaths();
     const filePath = path.resolve(runtimePaths.exportsDir, fileName);

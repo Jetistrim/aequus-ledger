@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { logoutSistema } from '../services/api';
 
 /**
@@ -6,13 +7,14 @@ import { logoutSistema } from '../services/api';
  */
 export function BotaoLogout() {
   const [saindo, setSaindo] = useState(false);
+  const navigate = useNavigate();
 
   async function handleLogout() {
     setSaindo(true);
     try {
       await logoutSistema();
     } finally {
-      window.location.assign('/');
+      navigate('/', { replace: true });
     }
   }
 

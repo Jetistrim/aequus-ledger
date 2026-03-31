@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { TotalizadoresBar } from '../components/TotalizadoresBar';
 import { FiltroRapido } from '../components/FiltroRapido';
 import { TabelaConciliacao } from '../components/TabelaConciliacao';
 import { BotaoGerarExtratos } from '../components/BotaoGerarExtratos';
 import { BotaoLogout } from '../components/BotaoLogout';
 import { useTransacoes } from '../hooks/useTransacoes';
+import { parseUrlFiltros, serializarFiltros } from '../utils/queryParamUtils';
 
 type Filtro = 'todos' | 'indefinidos';
 type FiltroClassificacao = 'TODAS' | 'PESSOAL' | 'EMPRESA' | 'INDEFINIDO';
@@ -62,14 +64,20 @@ function lerResumoUpload(): ResumoUploadPersistido | null {
  * o usuário no contexto da tabela.
  */
 export function ConciliacaoPage() {
-  const [filtro, setFiltro] = useState<Filtro>('todos');
-  const [buscaDigitada, setBuscaDigitada] = useState('');
-  const [busca, setBusca] = useState('');
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Inicializar estado a partir da URL
+  const filtrosUrl = parseUrlFiltros(searchParams);
+  
+  const [filtro, setFiltro] = useState<Filtro>(filtrosUrl.filtro);
+  const [buscaDigitada, setBuscaDigitada] = useState(filtrosUrl.busca);
+  const [busca, setBusca] = useState(filtrosUrl.busca);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [filtroClassificacao, setFiltroClassificacao] = useState<FiltroClassificacao>('TODAS');
-  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>('TODOS');
-  const [itensPorPagina, setItensPorPagina] = useState<(typeof ITENS_POR_PAGINA_OPCOES)[number]>(25);
-  const [paginaAtual, setPaginaAtual] = useState(1);
+  const [filtroClassificacao, setFiltroClassificacao] = useState<FiltroClassificacao>(filtrosUrl.classificacao);
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>(filtrosUrl.tipo);
+  const [itensPorPagina, setItensPorPagina] = useState<(typeof ITENS_POR_PAGINA_OPCOES)[number]>(filtrosUrl.limite as any);
+  const [paginaAtual, setPaginaAtual] = useState(filtrosUrl.pagina);
   const [resumoUpload, setResumoUpload] = useState<ResumoUploadPersistido | null>(() => lerResumoUpload());
   const [tentouCarregarExistentes, setTentouCarregarExistentes] = useState(false);
   const [mostrarAvisoSemDados, setMostrarAvisoSemDados] = useState(false);
@@ -91,6 +99,20 @@ export function ConciliacaoPage() {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
   }, []);
+
+  // Sincronizar URL com os filtros atuais toda vez que mudarem
+  useEffect(() => {
+    const novosFiltros = {
+      pagina: paginaAtual,
+      limite: itensPorPagina,
+      filtro,
+      classificacao: filtroClassificacao,
+      tipo: filtroTipo,
+      busca,
+    };
+    const novasParams = serializarFiltros(novosFiltros);
+    setSearchParams(novasParams, { replace: true });
+  }, [paginaAtual, itensPorPagina, filtro, filtroClassificacao, filtroTipo, busca, setSearchParams]);
 
   useEffect(() => {
     if (resumoUpload) {
@@ -163,7 +185,7 @@ export function ConciliacaoPage() {
   }
 
   function handleNovaImportacao() {
-    window.location.assign('/');
+    navigate('/');
   }
 
   const indefinidos = totais.indefinidos;
@@ -217,12 +239,20 @@ export function ConciliacaoPage() {
           <div className="flex items-center gap-4">
             <a
               href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/');
+              }}
               className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors"
             >
               ⬆️ Importar Arquivos
             </a>
             <a
               href="/regras"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate('/regras');
+              }}
               className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"
             >
               ⚙️ Gerenciar Regras
@@ -364,6 +394,7 @@ export function ConciliacaoPage() {
 
           <TabelaConciliacao
             transacoes={transacoes}
+            carregando={carregando}
             onClassificar={async (id, classificacao) => {
               await classificar(id, classificacao);
               const classificacaoConsulta = obterClassificacaoConsulta(filtro, filtroClassificacao);

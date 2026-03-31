@@ -61,6 +61,60 @@ beforeEach(() => {
 });
 
 describe('Transacoes controller', () => {
+  it('saneia query inválida de pagina e limite antes de consultar o Prisma', async () => {
+    prismaMock.transacao.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    prismaMock.transacao.findMany.mockResolvedValueOnce([]);
+    prismaMock.transacao.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } });
+
+    const app = createApp();
+    const res = await request(app).get('/api/transacoes?pagina=batata&limite=999999');
+
+    expect(res.status).toBe(200);
+    expect(res.body.paginacao).toMatchObject({
+      paginaAtual: 1,
+      limite: 50,
+    });
+    expect(prismaMock.transacao.findMany).toHaveBeenCalledWith({
+      where: {},
+      orderBy: { dataTransacao: 'desc' },
+      skip: 0,
+      take: 50,
+    });
+  });
+
+  it('força pagina para 1 quando recebe valor negativo', async () => {
+    prismaMock.transacao.count
+      .mockResolvedValueOnce(0)
+      .mockResolvedValueOnce(0);
+    prismaMock.transacao.findMany.mockResolvedValueOnce([]);
+    prismaMock.transacao.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } });
+
+    const app = createApp();
+    const res = await request(app).get('/api/transacoes?pagina=-5&limite=10');
+
+    expect(res.status).toBe(200);
+    expect(res.body.paginacao).toMatchObject({
+      paginaAtual: 1,
+      limite: 10,
+    });
+    expect(prismaMock.transacao.findMany).toHaveBeenCalledWith({
+      where: {},
+      orderBy: { dataTransacao: 'desc' },
+      skip: 0,
+      take: 10,
+    });
+  });
+
   it('calcula totais com saldo liquido por classificacao considerando tipo', async () => {
     prismaMock.transacao.count
       .mockResolvedValueOnce(0)
@@ -250,5 +304,60 @@ describe('Transacoes controller', () => {
 
     expect(res.status).toBe(204);
     expect(prismaMock.transacao.deleteMany).toHaveBeenCalledWith({});
+  });
+
+  it('retorna 400 quando pagina solicitada excede total de paginas', async () => {
+    prismaMock.transacao.count.mockResolvedValueOnce(25);
+    const app = createApp();
+
+    const res = await request(app).get('/api/transacoes?pagina=10&limite=25');
+
+    expect(res.status).toBe(400);
+    expect(res.body).toMatchObject({
+      erro: 'Página 10 não existe. Total de páginas: 1.',
+      codigo: 'INVALID_PAGE',
+    });
+    expect(res.body.detalhes).toEqual([
+      {
+        campo: 'pagina',
+        mensagem: 'Página solicitada (10) excede o total de páginas disponíveis (1).',
+      },
+    ]);
+    expect(prismaMock.transacao.findMany).not.toHaveBeenCalled();
+  });
+
+  it('retorna 400 quando pagina 2 é solicitada mas só existe 1 página', async () => {
+    prismaMock.transacao.count.mockResolvedValueOnce(10);
+    const app = createApp();
+
+    const res = await request(app).get('/api/transacoes?pagina=2&limite=50');
+
+    expect(res.status).toBe(400);
+    expect(res.body.codigo).toBe('INVALID_PAGE');
+    expect(res.body.detalhes[0].campo).toBe('pagina');
+  });
+
+  it('aceita pagina dentro do intervalo válido', async () => {
+    prismaMock.transacao.count
+      .mockResolvedValueOnce(100)
+      .mockResolvedValueOnce(100);
+    prismaMock.transacao.findMany.mockResolvedValueOnce([]);
+    prismaMock.transacao.aggregate
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } })
+      .mockResolvedValueOnce({ _sum: { valor: 0 } });
+
+    const app = createApp();
+    const res = await request(app).get('/api/transacoes?pagina=2&limite=50');
+
+    expect(res.status).toBe(200);
+    expect(res.body.paginacao.paginaAtual).toBe(2);
+    expect(prismaMock.transacao.findMany).toHaveBeenCalledWith({
+      where: {},
+      orderBy: { dataTransacao: 'desc' },
+      skip: 50,
+      take: 50,
+    });
   });
 });

@@ -4,17 +4,55 @@ import { useRegras } from '../hooks/useRegras';
 import { ModalConfirmacao } from './ModalConfirmacao';
 import { ModalTesteRegras } from './ModalTesteRegras';
 
+interface PainelRegrasProps {
+  modalTesteAberto?: boolean;
+  onAbrirModalTeste?: () => void;
+  onFecharModalTeste?: () => void;
+}
+
+// Larguras da coluna Palavras-chave por linha — estático no módulo, sem recriação por render.
+const SKELETON_PALAVRAS_WIDTHS = ['w-3/4', 'w-1/2', 'w-4/5', 'w-2/3', 'w-3/4', 'w-3/5', 'w-4/5', 'w-2/3'] as const;
+
+function RegrasSkeletonLinhas() {
+  return (
+    <>
+      {SKELETON_PALAVRAS_WIDTHS.map((w, i) => (
+        <tr key={i} aria-hidden="true">
+          <td className="px-2 py-3"><div className={`h-4 ${w} bg-gray-200 rounded animate-pulse`} /></td>
+          <td className="px-2 py-3 text-center"><div className="h-5 w-14 bg-gray-200 rounded-full animate-pulse mx-auto" /></td>
+          <td className="px-2 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse mx-auto" /></td>
+          <td className="px-2 py-3"><div className="h-4 w-8 bg-gray-200 rounded animate-pulse mx-auto" /></td>
+          <td className="px-2 py-3"><div className="h-6 w-16 bg-gray-200 rounded animate-pulse mx-auto" /></td>
+        </tr>
+      ))}
+    </>
+  );
+}
+
 /**
  * Painel de regras com CRUD, confirmação de exclusão e diagnóstico assistido.
+ * 
+ * @remarks
+ * Se modalTesteAberto e callbacks são fornecidos, utiliza estado da página.
+ * Caso contrário, mantém estado local para compatibilidade com código antigo.
  */
-export function PainelRegras() {
+export function PainelRegras({ 
+  modalTesteAberto: modalTesteAbertoProp = false, 
+  onAbrirModalTeste, 
+  onFecharModalTeste 
+}: PainelRegrasProps = {}) {
   const { regras, carregando, erro: erroApi, criar, atualizar, deletar } = useRegras();
   const [editandoId, setEditandoId] = useState<number | null>(null);
   const [novaRegra, setNovaRegra] = useState({ palavraChave: '', categoria: 'PESSOAL' as Categoria, subCategoria: '', prioridade: 0 });
   const [editData, setEditData] = useState<Partial<Omit<Regra, 'id'>>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [regraParaExcluir, setRegraParaExcluir] = useState<Regra | null>(null);
-  const [modalTesteAberto, setModalTesteAberto] = useState(false);
+  
+  // Usar estado local ou prop, dependendo se foi fornecida callback
+  const [modalTesteAbertoLocal, setModalTesteAbertoLocal] = useState(false);
+  const modalTesteAberto = onAbrirModalTeste ? modalTesteAbertoProp : modalTesteAbertoLocal;
+  const handleAbrirModal = onAbrirModalTeste ? onAbrirModalTeste : () => setModalTesteAbertoLocal(true);
+  const handleFecharModal = onFecharModalTeste ? onFecharModalTeste : () => setModalTesteAbertoLocal(false);
 
   async function handleCriar() {
     if (!novaRegra.palavraChave.trim()) { setErro('Informe ao menos uma palavra-chave.'); return; }
@@ -47,7 +85,7 @@ export function PainelRegras() {
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <h2 className="text-xl font-bold text-gray-800">Regras de Classificação</h2>
         <button
-          onClick={() => setModalTesteAberto(true)}
+          onClick={handleAbrirModal}
           className="rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-amber-600"
         >
           Abrir Teste de Regras
@@ -101,9 +139,6 @@ export function PainelRegras() {
       </div>
 
       {/* Tabela de regras */}
-      {carregando ? (
-        <p className="text-gray-500 text-sm">Carregando regras...</p>
-      ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 md:overflow-visible">
           <table className="min-w-[740px] w-full table-fixed divide-y divide-gray-200 text-sm md:min-w-full">
             <thead className="bg-gray-50">
@@ -116,7 +151,7 @@ export function PainelRegras() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-              {regras.map((r) => (
+              {carregando ? (<RegrasSkeletonLinhas />) : regras.map((r) => (
                 <tr key={r.id} className="hover:bg-gray-50">
                   <td className="px-2 py-3">
                     {editandoId === r.id ? (
@@ -214,7 +249,6 @@ export function PainelRegras() {
             </tbody>
           </table>
         </div>
-      )}
 
       {regraParaExcluir && (
         <ModalConfirmacao
@@ -238,7 +272,7 @@ export function PainelRegras() {
             subCategoria: novaRegra.subCategoria,
             prioridade: novaRegra.prioridade,
           }}
-          onFechar={() => setModalTesteAberto(false)}
+          onFechar={handleFecharModal}
         />
       )}
     </div>

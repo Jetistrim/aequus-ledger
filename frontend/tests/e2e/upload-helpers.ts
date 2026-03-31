@@ -13,6 +13,38 @@ export type UploadFileInput = UploadFixture | string;
 
 const VALIDACAO_422_APOS_UPLOAD_MS = 8_000;
 
+async function autenticarSeNecessario(page: Page): Promise<void> {
+  const fileInput = page.locator('input[type="file"][accept=".csv,.ofx,.xls,.xlsx"]');
+  const botaoEntrar = page.getByRole('button', { name: /Entrar/i });
+
+  await page.waitForSelector(
+    'input[type="file"][accept=".csv,.ofx,.xls,.xlsx"], button:has-text("Entrar")',
+    { timeout: 15000 }
+  );
+
+  if ((await fileInput.count()) > 0) {
+    return;
+  }
+
+  if ((await botaoEntrar.count()) === 0) {
+    return;
+  }
+
+  const usuario = process.env['E2E_AUTH_USERNAME']?.trim() || 'admin';
+  const senha = process.env['E2E_AUTH_PASSWORD'] || '123456';
+
+  await page.getByLabel(/Usu[aá]rio/i).fill(usuario);
+  await page.getByLabel(/Senha/i).fill(senha);
+  await botaoEntrar.first().click();
+
+  await expect(fileInput).toHaveCount(1, { timeout: 15000 });
+}
+
+export async function abrirTelaUpload(page: Page, url: string = '/'): Promise<void> {
+  await page.goto(url);
+  await autenticarSeNecessario(page);
+}
+
 async function safeReadResponseBody(response: { text(): Promise<string> }): Promise<string> {
   try {
     return await response.text();
@@ -86,7 +118,7 @@ export function buildSpreadsheetFixture(bookType: 'xls' | 'xlsx'): UploadFixture
 }
 
 export async function uploadSingleFileAndAssert(page: Page, fixture: UploadFileInput): Promise<void> {
-  await page.goto('/');
+  await abrirTelaUpload(page);
 
   const uploadResponsePromise = page.waitForResponse(
     (response) => response.url().includes('/api/upload') && response.request().method() === 'POST',

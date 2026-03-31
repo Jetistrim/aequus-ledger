@@ -2,6 +2,7 @@
 
 import { test, expect } from '@playwright/test';
 import * as XLSX from 'xlsx';
+import { abrirTelaUpload } from './upload-helpers';
 
 async function safeReadResponseBody(response: { text(): Promise<string> }): Promise<string> {
   try {
@@ -43,7 +44,7 @@ function buildXlsBufferWithHeaderBeforeColumns(): Buffer {
 test('importa XLS com cabecalho anterior e valida erro apos 8 segundos', async ({ page }) => {
   const xlsPath = process.env['XLS_FILE_PATH'];
 
-  await page.goto('http://localhost:5173');
+  await abrirTelaUpload(page, 'http://localhost:5173');
 
   const uploadResponsePromise = page.waitForResponse(
     (response) => response.url().includes('/api/upload') && response.request().method() === 'POST',

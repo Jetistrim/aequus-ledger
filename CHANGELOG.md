@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.4 - 2026-03-31
+
+### Fixed
+
+- correção dos testes E2E de upload (Playwright) para autenticar automaticamente quando a tela de login estiver ativa
+- remoção de condição de corrida na abertura da home durante validação de sessão, aguardando estado de upload ou login antes de prosseguir
+
 ## 2.1.3 - 2026-03-30
 
 ### Added

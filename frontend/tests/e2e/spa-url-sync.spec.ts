@@ -1,432 +1,402 @@
-import { test, expect, Page } from '@playwright/test';
+import { BrowserContext, Page, expect, test } from '@playwright/test';
+import { abrirTelaUpload, buildCsvFixture } from './upload-helpers';
+
+const BASE_URL = 'http://localhost:5173';
+
+interface MockTransacoesOptions {
+  totalRegistros?: number;
+  totalIndefinidos?: number;
+}
+
+function criarTransacaoMock(indice: number, classificacao: 'PESSOAL' | 'EMPRESA' | 'INDEFINIDO') {
+  return {
+    id: `00000000-0000-4000-8000-${String(indice).padStart(12, '0')}`,
+    dataTransacao: '2026-03-31T00:00:00.000Z',
+    descricao: `Transação ${indice}`,
+    valor: 123.45,
+    tipo: indice % 2 === 0 ? 'ENTRADA' : 'SAIDA',
+    classificacao,
+    categoriaGenerica: classificacao === 'INDEFINIDO' ? null : 'Categoria Teste',
+    hashTransacao: `hash-${indice}`,
+    identificador: `Conta ${indice}`,
+  };
+}
+
+async function mockTransacoes(page: Page, options: MockTransacoesOptions = {}) {
+  const requests: string[] = [];
+  const totalRegistrosBase = options.totalRegistros ?? 60;
+  const totalIndefinidos = options.totalIndefinidos ?? 12;
+
+  await page.route('**/api/transacoes**', async (route) => {
+    const requestUrl = route.request().url();
+    requests.push(requestUrl);
+
+    const url = new URL(requestUrl);
+    const pagina = Number(url.searchParams.get('pagina') ?? '1') || 1;
+    const limite = Number(url.searchParams.get('limite') ?? '25') || 25;
+    const classificacao = url.searchParams.get('classificacao');
+    const totalRegistros = classificacao === 'INDEFINIDO' ? totalIndefinidos : totalRegistrosBase;
+    const totalPaginas = Math.max(1, Math.ceil(totalRegistros / limite));
+
+    if (pagina > totalPaginas) {
+      await route.fulfill({
+        status: 400,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          erro: `Página ${pagina} não existe. Total de páginas: ${totalPaginas}.`,
+          codigo: 'INVALID_PAGE',
+          detalhes: [
+            {
+              campo: 'pagina',
+              mensagem: `Página solicitada (${pagina}) excede o total de páginas disponíveis (${totalPaginas}).`,
+            },
+          ],
+        }),
+      });
+      return;
+    }
+
+    const inicio = (pagina - 1) * limite;
+    const quantidade = Math.max(0, Math.min(limite, totalRegistros - inicio));
+    const classificacaoLinha =
+      classificacao === 'PESSOAL' || classificacao === 'EMPRESA' || classificacao === 'INDEFINIDO'
+        ? classificacao
+        : 'PESSOAL';
+
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        dados: Array.from({ length: quantidade }, (_, offset) => criarTransacaoMock(inicio + offset + 1, classificacaoLinha)),
+        paginacao: {
+          paginaAtual: pagina,
+          totalPaginas,
+          totalRegistros,
+          limite,
+        },
+        totais: {
+          pessoal: 500,
+          empresa: 300,
+          total: 800,
+          indefinidos: totalIndefinidos,
+        },
+      }),
+    });
+  });
+
+  return requests;
+}
+
+async function mockRegras(page: Page) {
+  await page.route('**/api/regras', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: '[]',
+    });
+  });
+}
 
 test.describe('SPA URL State Synchronization - E2E', () => {
+  let context: BrowserContext;
   let page: Page;
 
   test.beforeEach(async ({ browser }) => {
-    page = await browser.newPage();
-    // Assumir que a aplicação está rodando em localhost:5173
-    await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
+    context = await browser.newContext();
+    page = await context.newPage();
+    await abrirTelaUpload(page);
   });
 
   test.afterEach(async () => {
-    await page.close();
+    await context.close();
   });
 
   test.describe('Passo Upload ↔ Revisão (HomePage)', () => {
     test('inicia com passo=upload (sem URL params)', async () => {
-      const url = page.url();
-      expect(url).not.toContain('passo=');
+      expect(page.url()).toBe(`${BASE_URL}/`);
+      await expect(page.locator('input[type="file"][accept=".csv,.ofx,.xls,.xlsx"]')).toHaveCount(1);
     });
 
-    test('navega para revisao após upload bem-sucedido (+URL param)', async () => {
-      // Simular seleção de arquivo
-      const inputFile = page.locator('input[type="file"]');
-      
-      if (await inputFile.isVisible({ timeout: 5000 })) {
-        // Criar arquivo CSV minimal para teste
-        const fileContent = 'data,descricao,valor\n2026-03-31,Café,50.00\n';
-        const buffer = Buffer.from(fileContent);
-        
-        await inputFile.setInputFiles({
-          name: 'test.csv',
-          mimeType: 'text/csv',
-          buffer: buffer,
-        });
+    test('navega para revisao após selecionar arquivo (+URL param)', async () => {
+      const inputFile = page.locator('input[type="file"][accept=".csv,.ofx,.xls,.xlsx"]');
+      const fixture = buildCsvFixture();
 
-        // Clicar em "Processar" ou similar
-        const botaoProcessar = page.locator('button:has-text(/processar|enviar|upload/i)');
-        if (await botaoProcessar.isVisible({ timeout: 2000 })) {
-          await botaoProcessar.click();
-        }
+      await inputFile.setInputFiles(fixture);
+      await page.getByRole('button', { name: /Revisar Arquivos/i }).click();
 
-        // Aguardar navegação para revisão
-        await page.waitForURL(/\?passo=revisao/i, { timeout: 10000 });
-        
-        expect(page.url()).toContain('passo=revisao');
-      }
+      await page.waitForURL(/\?passo=revisao/i, { timeout: 10000 });
+      await expect(page.getByRole('heading', { name: /Revisar Arquivos/i })).toBeVisible();
     });
 
-    test('volta para upload se clicar em "Novo Upload"', async () => {
-      // Navegar para revisao
-      await page.goto('http://localhost:5173?passo=revisao', { waitUntil: 'networkidle' });
+    test('volta para upload se clicar em "Voltar" na revisão', async () => {
+      const inputFile = page.locator('input[type="file"][accept=".csv,.ofx,.xls,.xlsx"]');
+      const fixture = buildCsvFixture();
 
-      // Localizar botão "Novo Upload" e clicar
-      const botaoNovoUpload = page.locator('button:has-text(/novo upload|recomeçar|reset/i)');
-      if (await botaoNovoUpload.isVisible({ timeout: 5000 })) {
-        await botaoNovoUpload.click();
-        
-        // URL deve voltar ao estado inicial (sem passo ou passo=upload)
-        await page.waitForURL(/(\?$|$)/, { timeout: 5000 });
-        expect(page.url()).not.toContain('passo=revisao');
-      }
+      await inputFile.setInputFiles(fixture);
+      await page.getByRole('button', { name: /Revisar Arquivos/i }).click();
+      await page.waitForURL(/\?passo=revisao/i, { timeout: 10000 });
+
+      await page.getByRole('button', { name: /^←\s*Voltar$/i }).click();
+
+      await expect(page).toHaveURL(`${BASE_URL}/`);
+      await expect(page.locator('input[type="file"][accept=".csv,.ofx,.xls,.xlsx"]')).toHaveCount(1);
     });
 
     test('fallback: reload com passo=revisao retorna a upload (sem File[])', async () => {
-      // Tentar navegar diretamente para revisao sem upload prévio
-      await page.goto('http://localhost:5173?passo=revisao', {
-        waitUntil: 'networkidle',
-      });
+      await page.goto(`${BASE_URL}/?passo=revisao`, { waitUntil: 'networkidle' });
 
-      // Aguardar para componente detectar que não há Files
-      // (fallback lógico em HomePage)
-      await page.waitForTimeout(1000);
-
-      // Se implementado corretamente, deve redirecionar ou mostrar upload zone
-      const urlFinal = page.url();
-      // Pode estar vazio, upload, ou mostrar mensagem de erro
-      expect(
-        urlFinal.includes('passo=upload') || 
-        !urlFinal.includes('passo=revisao') ||
-        (await page.locator('input[type="file"]').isVisible({ timeout: 2000 }))
-      ).toBeTruthy();
+      await expect(page).toHaveURL(`${BASE_URL}/`);
+      await expect(page.locator('input[type="file"][accept=".csv,.ofx,.xls,.xlsx"]')).toHaveCount(1);
     });
   });
 
   test.describe('Filtragem em ConciliacaoPage (URL params)', () => {
-    test.beforeEach(async () => {
-      // Assumir que existem transações no banco (de testes prévios)
-      await page.goto('http://localhost:5173/conciliacao', {
-        waitUntil: 'networkidle',
-      });
-    });
-
     test('URL vazia usa defaults: pagina=1, limite=25, filtro=todos', async () => {
-      // API deve ser chamada com defaults
-      const apiRequest = page.waitForResponse(
-        (res) =>
-          res.url().includes('/api/transacoes') &&
-          res.status() === 200
-      );
+      const requests = await mockTransacoes(page);
 
-      await page.goto('http://localhost:5173/conciliacao', {
-        waitUntil: 'networkidle',
-      });
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
 
-      const response = await apiRequest;
-      const json = await response.json();
-
-      expect(json.pagina).toBe(1);
-      expect(json.limite).toBe(25);
+      expect(page.url()).toBe(`${BASE_URL}/conciliacao`);
+      expect(requests.some((url) => url.includes('pagina=1') && url.includes('limite=25'))).toBeTruthy();
+      await expect(page.getByText(/Página\s+1\s+de\s+3/i)).toBeVisible();
     });
 
     test('filtro "indefinidos" salva na URL', async () => {
-      const botaoFiltro = page.locator('button:has-text(/indefinidos|filtro/i)');
-      
-      if (await botaoFiltro.isVisible({ timeout: 3000 })) {
-        await botaoFiltro.click();
+      const requests = await mockTransacoes(page);
 
-        // URL deve ter ?filtro=indefinidos
-        await page.waitForURL(/filtro=indefinidos/i, { timeout: 5000 });
-        expect(page.url()).toContain('filtro=indefinidos');
-      }
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: /Ver Indefinidos/i }).click();
+
+      await page.waitForURL(/filtro=indefinidos/i, { timeout: 5000 });
+      expect(requests.some((url) => url.includes('classificacao=INDEFINIDO'))).toBeTruthy();
     });
 
     test('alteração de página sincroniza URL', async () => {
-      // Navegar para página 2
-      const botaoPagina2 = page.locator('button:has-text("2")', {
-        hasText: /^\s*2\s*$/,
-      });
+      await mockTransacoes(page);
 
-      if (await botaoPagina2.isVisible({ timeout: 3000 })) {
-        await botaoPagina2.click();
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: /Próxima/i }).click();
 
-        // URL deve ter ?pagina=2
-        await page.waitForURL(/pagina=2/, { timeout: 5000 });
-        expect(page.url()).toContain('pagina=2');
-      }
+      await page.waitForURL(/pagina=2/, { timeout: 5000 });
+      await expect(page.getByText(/Página\s+2\s+de\s+3/i)).toBeVisible();
     });
 
     test('reload preserva estado: ?pagina=3&filtro=indefinidos', async () => {
-      // Navegar com query params específicos
-      await page.goto(
-        'http://localhost:5173/conciliacao?pagina=3&filtro=indefinidos',
-        { waitUntil: 'networkidle' }
-      );
+      const requests = await mockTransacoes(page, { totalRegistros: 80, totalIndefinidos: 80 });
 
-      // Recarregar página
-      await page.reload({ waitUntil: 'networkidle' });
-
-      // URL deve permanecer igual
+      await page.goto(`${BASE_URL}/conciliacao?pagina=3&filtro=indefinidos`, { waitUntil: 'networkidle' });
       expect(page.url()).toContain('pagina=3');
       expect(page.url()).toContain('filtro=indefinidos');
 
-      // API deve ser chamada com esses params (sem usar APIs internas do Playwright)
-      const resposta = await page.waitForResponse((res) => {
-        return (
+      const reloadResponse = page.waitForResponse(
+        (res) =>
           res.url().includes('/api/transacoes') &&
           res.request().url().includes('pagina=3') &&
-          res.request().url().includes('filtro=indefinidos')
-        );
-      }, { timeout: 5000 });
+          res.request().url().includes('classificacao=INDEFINIDO'),
+        { timeout: 5000 }
+      );
+
+      await page.reload({ waitUntil: 'networkidle' });
+      const resposta = await reloadResponse;
 
       expect(resposta.ok()).toBeTruthy();
+      expect(requests.some((url) => url.includes('pagina=3') && url.includes('classificacao=INDEFINIDO'))).toBeTruthy();
+      expect(page.url()).toContain('pagina=3');
+      expect(page.url()).toContain('filtro=indefinidos');
     });
 
     test('busca sincroniza URL', async () => {
-      const inputBusca = page.locator('input[placeholder*="busca" i]');
+      await mockTransacoes(page);
 
-      if (await inputBusca.isVisible({ timeout: 3000 })) {
-        await inputBusca.fill('café');
-        await inputBusca.press('Enter');
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
+      await page.getByPlaceholder(/Mín\. 3 caracteres/i).fill('cafe');
 
-        // URL deve ter ?busca=café
-        await page.waitForURL(/busca=caf/, { timeout: 5000 });
-        expect(page.url()).toContain('busca');
-      }
+      await page.waitForURL(/busca=cafe/i, { timeout: 5000 });
+      expect(page.url()).toContain('busca=cafe');
     });
 
     test('classificação não-default sincroniza URL', async () => {
-      const selectClassificacao = page.locator('select[name="classificacao"]') ||
-        page.locator('[aria-label*="classificação" i]');
+      await mockTransacoes(page);
 
-      if (await selectClassificacao.isVisible({ timeout: 3000 })) {
-        await selectClassificacao.selectOption('PESSOAL');
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
+      await page.locator('select').first().selectOption('PESSOAL');
 
-        // URL deve ter ?classificacao=PESSOAL
-        await page.waitForURL(/classificacao=PESSOAL/i, { timeout: 5000 });
-        expect(page.url()).toContain('classificacao=PESSOAL');
-      }
+      await page.waitForURL(/classificacao=PESSOAL/i, { timeout: 5000 });
+      expect(page.url()).toContain('classificacao=PESSOAL');
     });
 
-    test('compartilhamento de URL: abrir URL com params em nova aba', async () => {
-      // Página 1: navegar com filtros
-      await page.goto(
-        'http://localhost:5173/conciliacao?pagina=2&limite=50&filtro=indefinidos',
-        { waitUntil: 'networkidle' }
-      );
+    test('compartilhamento de URL: abrir URL com params em nova aba', async ({ browser }) => {
+      await mockTransacoes(page, { totalRegistros: 120, totalIndefinidos: 120 });
 
+      await page.goto(`${BASE_URL}/conciliacao?pagina=2&limite=50&filtro=indefinidos`, { waitUntil: 'networkidle' });
       const url = page.url();
+      const storageState = await context.storageState();
 
-      // Página 2: abrir em nova aba
-      const newPage = await page.context().newPage();
+      const secondContext = await browser.newContext({ storageState });
+      const newPage = await secondContext.newPage();
+      const requests = await mockTransacoes(newPage, { totalRegistros: 120, totalIndefinidos: 120 });
+
       await newPage.goto(url, { waitUntil: 'networkidle' });
 
-      // Ambas devem ter o mesmo estado
       expect(newPage.url()).toBe(url);
+      expect(requests.some((requestUrl) => requestUrl.includes('pagina=2') && requestUrl.includes('limite=50') && requestUrl.includes('classificacao=INDEFINIDO'))).toBeTruthy();
 
-      // Verificar que filtros estão aplicados na nova aba
-      // (Verificação visual ou de API call)
-
-      await newPage.close();
+      await secondContext.close();
     });
   });
 
   test.describe('RegrasPage - Modal com URL', () => {
     test.beforeEach(async () => {
-      await page.goto('http://localhost:5173/regras', {
-        waitUntil: 'networkidle',
-      });
+      await mockRegras(page);
+      await page.goto(`${BASE_URL}/regras`, { waitUntil: 'networkidle' });
     });
 
     test('URL sem modalTeste tem modal fechado', async () => {
-      const modal = page.locator('[data-testid="modal-teste"]') ||
-        page.locator('[role="dialog"]');
-
-      const isVisible = await modal.isVisible({ timeout: 2000 }).catch(() => false);
-      expect(isVisible).toBe(false);
+      await expect(page.getByTestId('modal-teste')).toHaveCount(0);
     });
 
     test('?modalTeste=1 abre modal', async () => {
-      await page.goto('http://localhost:5173/regras?modalTeste=1', {
-        waitUntil: 'networkidle',
-      });
+      await page.goto(`${BASE_URL}/regras?modalTeste=1`, { waitUntil: 'networkidle' });
 
-      const modal = page.locator('[data-testid="modal-teste"]') ||
-        page.locator('[role="dialog"]');
-
-      const isVisible = await modal.isVisible({ timeout: 2000 }).catch(() => false);
-      expect(isVisible).toBe(true);
+      await expect(page.getByTestId('modal-teste')).toBeVisible();
+      await expect(page.getByRole('dialog', { name: /Teste de Regras/i })).toBeVisible();
     });
 
     test('clicar em "Abrir Teste" adiciona ?modalTeste=1 à URL', async () => {
-      const botaoAbrirTeste = page.locator('button:has-text(/abrir.*teste|teste/i)');
+      await page.getByRole('button', { name: /Abrir Teste de Regras/i }).click();
 
-      if (await botaoAbrirTeste.isVisible({ timeout: 3000 })) {
-        await botaoAbrirTeste.click();
-
-        // URL deve ter ?modalTeste=1
-        await page.waitForURL(/modalTeste=1/i, { timeout: 5000 });
-        expect(page.url()).toContain('modalTeste=1');
-      }
+      await page.waitForURL(/modalTeste=1/i, { timeout: 5000 });
+      await expect(page.getByTestId('modal-teste')).toBeVisible();
     });
 
     test('fechar modal remove ?modalTeste da URL', async () => {
-      await page.goto('http://localhost:5173/regras?modalTeste=1', {
-        waitUntil: 'networkidle',
-      });
+      await page.goto(`${BASE_URL}/regras?modalTeste=1`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: /^Fechar$/i }).click();
 
-      const botaoFechar = page.locator('button:has-text(/fechar|close|cancelar/i)');
-
-      if (await botaoFechar.isVisible({ timeout: 3000 })) {
-        await botaoFechar.click();
-
-        // URL não deve ter ?modalTeste
-        await page.waitForURL(/^(?!.*modalTeste)/, { timeout: 5000 });
-        expect(page.url()).not.toContain('modalTeste');
-      }
+      await expect(page).toHaveURL(`${BASE_URL}/regras`);
+      await expect(page.getByTestId('modal-teste')).toHaveCount(0);
     });
   });
 
   test.describe('Validação de página inválida (erro backend)', () => {
     test('página > totalPaginas retorna erro 400 INVALID_PAGE', async () => {
-      // Montar listener para capturar resposta
+      await mockTransacoes(page, { totalRegistros: 10 });
+
       const errorResponse = page.waitForResponse(
-        (res) =>
-          res.url().includes('/api/transacoes') &&
-          res.status() === 400
+        (res) => res.url().includes('/api/transacoes') && res.status() === 400,
+        { timeout: 5000 }
       );
 
-      // Solicitar página muito alta
-      await page.goto(
-        'http://localhost:5173/conciliacao?pagina=999999',
-        { waitUntil: 'networkidle' }
-      );
+      await page.goto(`${BASE_URL}/conciliacao?pagina=999999`, { waitUntil: 'networkidle' });
 
-      // Se não houver erro, tudo bem (pode haver menos transações que esperado)
-      // Se houver, verificar error code
-      try {
-        const response = await errorResponse;
-        const json = await response.json();
-        expect(json.error).toBe('INVALID_PAGE');
-      } catch {
-        // Timeout é OK (significa que não houve erro 400)
-        console.log('Sem erro 400 (esperado se página válida)');
-      }
+      const response = await errorResponse;
+      const json = await response.json();
+      expect(json.codigo).toBe('INVALID_PAGE');
+      expect(json.erro).toContain('Página 999999 não existe');
     });
   });
 
   test.describe('Navegação entre páginas (React Router SPA)', () => {
     test('não há reload ao navegar de Home → Conciliação → Regras', async () => {
-      // Capturaçãodas navegações
-      const navigations: string[] = [];
+      await mockTransacoes(page);
+      await mockRegras(page);
 
+      const loads: string[] = [];
       page.on('load', () => {
-        navigations.push('load');
+        loads.push(page.url());
       });
 
-      // Home
-      await page.goto('http://localhost:5173', { waitUntil: 'networkidle' });
-      navigations.push('home');
+      await page.getByRole('link', { name: /Ir para Tabela/i }).click();
+      await expect(page).toHaveURL(/\/conciliacao$/);
 
-      // Clicar em Conciliação (assumir que há link)
-      const linkConciliacao = page.locator('a:has-text(/conciliação|revisão/i)');
-      if (await linkConciliacao.isVisible({ timeout: 3000 })) {
-        await linkConciliacao.click();
-        await page.waitForURL('/conciliacao', { timeout: 5000 });
-      }
+      await page.getByRole('link', { name: /Gerenciar Regras/i }).click();
+      await expect(page).toHaveURL(/\/regras$/);
 
-      // Clicar em Regras
-      const linkRegras = page.locator('a:has-text(/regras/i)');
-      if (await linkRegras.isVisible({ timeout: 3000 })) {
-        await linkRegras.click();
-        await page.waitForURL('/regras', { timeout: 5000 });
-      }
-
-      // Verificar que houve apenas 1 load (inicial), não 3
-      expect(navigations.filter((n) => n === 'load').length).toBeLessThanOrEqual(1);
+      expect(loads.length).toBe(0);
     });
   });
 
   test.describe('Tratamento de Erros - Simulação', () => {
-    // Para estes testes, seria ideal usar interceptação de rede (vi.mock ou Playwright intercepts)
-    
-    test('exibe erro se falhar ao carregar transações', async () => {
-      // Interceptar requisição e retornar erro 500
-      await page.route('**/api/transacoes**', (route) => {
-        route.abort('failed');
+    test('exibe estado de erro transitório se falhar ao carregar transações', async () => {
+      await page.route('**/api/transacoes**', async (route) => {
+        await route.abort('failed');
       });
 
-      await page.goto('http://localhost:5173/conciliacao', {
-        waitUntil: 'networkidle',
-      });
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
 
-      // Verificar mensagem de erro
-      const errorMsg = page.locator('text=/erro|failed/i');
-      const isVisible = await errorMsg.isVisible({ timeout: 3000 }).catch(() => false);
-      
-      if (isVisible) {
-        expect(await errorMsg.textContent()).toMatch(/erro|failed/i);
-      }
+      await expect(page.getByText(/Aguardando sistema iniciar/i)).toBeVisible();
     });
 
-    test('retentativa ao clicar em "Tentar Novamente"', async () => {
+    test('retentativa ao clicar em "Carregar dados existentes"', async () => {
       let callCount = 0;
 
-      await page.route('**/api/transacoes**', (route) => {
-        callCount++;
+      await page.route('**/api/transacoes**', async (route) => {
+        callCount += 1;
+
         if (callCount === 1) {
-          route.abort('failed');
-        } else {
-          route.continue();
+          await route.abort('failed');
+          return;
         }
+
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            dados: [criarTransacaoMock(1, 'PESSOAL')],
+            paginacao: {
+              paginaAtual: 1,
+              totalPaginas: 1,
+              totalRegistros: 1,
+              limite: 25,
+            },
+            totais: {
+              pessoal: 123.45,
+              empresa: 0,
+              total: 123.45,
+              indefinidos: 0,
+            },
+          }),
+        });
       });
 
-      await page.goto('http://localhost:5173/conciliacao', {
-        waitUntil: 'networkidle',
-      });
+      await page.goto(`${BASE_URL}/conciliacao`, { waitUntil: 'networkidle' });
+      await page.getByRole('button', { name: /Carregar dados existentes/i }).click();
 
-      // Localizar botão de retentativa
-      const botaoRetry = page.locator('button:has-text(/tentar|retry|novamente/i)');
-      if (await botaoRetry.isVisible({ timeout: 3000 })) {
-        await botaoRetry.click();
-        await page.waitForTimeout(500);
-      }
-
-      expect(callCount).toBeGreaterThanOrEqual(1);
+      await expect.poll(() => callCount, { timeout: 5000 }).toBeGreaterThanOrEqual(2);
+      await expect(page.getByText(/Mostrando\s+1\s+a\s+1\s+de\s+1\s+transações\./i)).toBeVisible();
     });
   });
 
   test.describe('Edge Cases', () => {
     test('URL com caracteres especiais em busca', async () => {
-      await page.goto(
-        'http://localhost:5173/conciliacao?busca=caf%C3%A9%20com%20le%C3%ADte',
-        { waitUntil: 'networkidle' }
-      );
+      await mockTransacoes(page);
 
-      // URL deve estar corretamente decodificada
-      expect(page.url()).toContain('busca');
-      // Verificar que busca foi aplicada
-      // (Detalhes dependem da UI)
+      await page.goto(`${BASE_URL}/conciliacao?busca=caf%C3%A9%20com%20le%C3%ADte`, { waitUntil: 'networkidle' });
+
+      const urlAtual = new URL(page.url());
+      expect(urlAtual.searchParams.get('busca')).toBe('café com leíte');
+      await expect(page.getByPlaceholder(/Mín\. 3 caracteres/i)).toHaveValue('café com leíte');
     });
 
     test('URL com múltiplos parâmetros malformados', async () => {
-      // URL com parâmetros inválidos
-      await page.goto(
-        'http://localhost:5173/conciliacao?pagina=batata&limite=999999&tipo=INVALIDO',
-        { waitUntil: 'networkidle' }
-      );
+      await mockTransacoes(page);
 
-      // Aplicação deve usar defaults silenciosamente
-      // Página deve carregar sem erro
+      await page.goto(`${BASE_URL}/conciliacao?pagina=batata&limite=999999&tipo=INVALIDO`, { waitUntil: 'networkidle' });
+
       expect(page.url()).toContain('conciliacao');
-
-      // Verificar que a tabela está visível (dados carregados)
-      const tabela = page.locator('table') || page.locator('[role="grid"]');
-      const isVisible = await tabela.isVisible({ timeout: 5000 }).catch(() => true);
-      
-      // Pode não haver tabela se não houver dados, ok
-      expect(isVisible).not.toBe(undefined);
+      await expect(page.getByText(/Página\s+1\s+de\s+3/i)).toBeVisible();
     });
 
     test('voltar e avançar no navegador preserva estado', async () => {
-      // Página 1: Conciliação com filtros
-      await page.goto(
-        'http://localhost:5173/conciliacao?pagina=2&filtro=indefinidos',
-        { waitUntil: 'networkidle' }
-      );
+      await mockTransacoes(page, { totalRegistros: 80, totalIndefinidos: 80 });
 
+      await page.goto(`${BASE_URL}/conciliacao?pagina=2&filtro=indefinidos`, { waitUntil: 'networkidle' });
       const url1 = page.url();
 
-      // Ir para Regras
-      await page.goto('http://localhost:5173/regras', {
-        waitUntil: 'networkidle',
-      });
-
-      // Voltar (browser back)
+      await mockRegras(page);
+      await page.goto(`${BASE_URL}/regras`, { waitUntil: 'networkidle' });
       await page.goBack({ waitUntil: 'networkidle' });
 
-      // URL deve ser a mesma da página 1
       expect(page.url()).toBe(url1);
     });
   });

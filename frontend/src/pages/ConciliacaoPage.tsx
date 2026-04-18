@@ -85,6 +85,15 @@ export function ConciliacaoPage() {
   const [botaoCarregarDesabilitado, setBotaoCarregarDesabilitado] = useState(false);
   const timeoutFadeRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const timeoutHideRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const assinaturaFiltrosAnteriorRef = useRef(
+    JSON.stringify({
+      filtro: filtrosUrl.filtro,
+      classificacao: filtrosUrl.classificacao,
+      tipo: filtrosUrl.tipo,
+      busca: filtrosUrl.busca,
+      limite: filtrosUrl.limite,
+    }),
+  );
 
   const { transacoes, paginacao, totais, carregando, erro, carregar, classificar, atualizarTransacao } = useTransacoes();
   const mostrandoFallbackInicial = Boolean(erro)
@@ -189,10 +198,22 @@ export function ConciliacaoPage() {
   }
 
   const indefinidos = totais.indefinidos;
+  const assinaturaFiltrosAtual = JSON.stringify({
+    filtro,
+    classificacao: filtroClassificacao,
+    tipo: filtroTipo,
+    busca,
+    limite: itensPorPagina,
+  });
 
   useEffect(() => {
+    if (assinaturaFiltrosAtual === assinaturaFiltrosAnteriorRef.current) {
+      return;
+    }
+
+    assinaturaFiltrosAnteriorRef.current = assinaturaFiltrosAtual;
     setPaginaAtual(1);
-  }, [filtro, filtroClassificacao, filtroTipo, busca, itensPorPagina]);
+  }, [assinaturaFiltrosAtual]);
 
   useEffect(() => {
     const classificacao = obterClassificacaoConsulta(filtro, filtroClassificacao);
@@ -209,10 +230,14 @@ export function ConciliacaoPage() {
   }, [paginaAtual, itensPorPagina, filtro, filtroClassificacao, filtroTipo, busca, carregar]);
 
   useEffect(() => {
+    if (paginacao.totalRegistros === 0 && transacoes.length === 0) {
+      return;
+    }
+
     if (paginacao.paginaAtual !== paginaAtual) {
       setPaginaAtual(paginacao.paginaAtual);
     }
-  }, [paginacao.paginaAtual, paginaAtual]);
+  }, [paginacao.paginaAtual, paginacao.totalRegistros, paginaAtual, transacoes.length]);
 
   useEffect(() => {
     if (!mostrandoFallbackInicial) {

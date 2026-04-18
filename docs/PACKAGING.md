@@ -10,6 +10,15 @@ e executa `start.bat`.
 npm run release:portable
 ```
 
+Ou, para gerar o mesmo ZIP no GitHub e publicar somente apos aprovacao manual:
+
+1. Atualize a versao no `package.json` raiz.
+2. Adicione a secao correspondente em `CHANGELOG.md`.
+3. Execute o workflow `Release Portable` no GitHub Actions e, se necessario, ajuste o input `release_environment` (padrao: `release`).
+4. Revise o artifact gerado.
+5. Aprove o job `Publish Tag And Release` no GitHub Environment selecionado.
+6. O workflow cria a tag `v<versao>` e a GitHub Release anexando exatamente o mesmo ZIP aprovado.
+
 Pipeline executada:
 
 1. Compila backend (TypeScript -> CommonJS).
@@ -104,8 +113,33 @@ No modo portatil, os dados ficam ao lado da aplicacao:
 | `zip:portable` | `node scripts/zip-portable.mjs` | Gera ZIP em `artifacts/` |
 | `release:portable` | `npm run build:portable && npm run zip:portable` | Pipeline completa |
 
+## Publicacao via GitHub Actions
+
+Workflow: `.github/workflows/release-portable.yml`
+
+Fluxo:
+
+1. Roda manualmente via `workflow_dispatch`.
+2. Recebe o input `release_environment`, com valor padrao `release`, para definir em qual GitHub Environment o job de publicacao deve aguardar approval.
+3. Executa em `windows-latest` para manter compatibilidade com `better-sqlite3`, `node.exe` e `Compress-Archive`.
+4. Valida a versao do `package.json` raiz, exige formato semver e falha se a tag `v<versao>` ja existir.
+5. Extrai o corpo da release da secao correspondente em `CHANGELOG.md`.
+6. Executa `npm run release:portable` e publica o ZIP como artifact.
+7. Aguarda aprovacao humana no GitHub Environment informado no input.
+8. Depois da aprovacao, baixa o mesmo artifact, cria a tag anotada e publica a GitHub Release com o mesmo ZIP.
+
+Pre-condicoes:
+
+- Criar o GitHub Environment que sera usado no input `release_environment` com reviewers obrigatorios para que exista approval real.
+- Garantir que `package.json` raiz e `CHANGELOG.md` estejam no mesmo commit a ser publicado.
+- Manter a versao canonica no `package.json` raiz; o workflow nao usa `backend/package.json` nem `frontend/package.json` para nomear a release.
+- O hook `.husky/pre-push` bloqueia pushes que tentem introduzir no branch uma versao do `package.json` raiz que ja exista como tag no remoto.
+
 ## Troubleshooting
 
 - Se o zip falhar, confirme que `portable/` existe e execute `npm run build:portable` antes.
 - Se `better-sqlite3` falhar no alvo, gere o pacote no mesmo ambiente Windows x64.
 - Se a bandeja nao aparecer, o servidor continua funcional; abra a URL impressa no console.
+- Se o workflow falhar dizendo que a secao da versao nao existe, confira se `CHANGELOG.md` contem um cabecalho `## <versao>` exatamente igual ao `package.json` raiz.
+- Se o job de publicacao nao pausar para aprovacao, confirme a configuracao do GitHub Environment informado em `release_environment`.
+- Se o `git push` for bloqueado por versao duplicada, incremente o campo `version` no `package.json` raiz antes de enviar a branch.

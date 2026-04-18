@@ -1,3 +1,6 @@
+echo "► [pre-push] Validando versao de release..."
+node scripts/check-release-version.mjs
+
 echo "► [pre-push] Build completo do backend..."
 npm run build --prefix backend
 

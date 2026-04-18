@@ -1,0 +1,196 @@
+name: Release Portable
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_environment:
+        description: GitHub Environment que exige approval para publicar a release
+        required: true
+        default: release
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+concurrency:
+  group: release-portable
+  cancel-in-progress: false
+
+jobs:
+  build-portable:
+    name: Build Portable Artifact
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
+      tag: ${{ steps.metadata.outputs.tag }}
+      zip_name: ${{ steps.metadata.outputs.zip_name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Validate release metadata
+        id: metadata
+        shell: pwsh
+        run: |
+          $packageJson = Get-Content package.json -Raw | ConvertFrom-Json
+          $version = [string] $packageJson.version
+
+          if ([string]::IsNullOrWhiteSpace($version)) {
+            throw 'package.json raiz sem campo version.'
+          }
+
+          if ($version -notmatch '^\d+\.\d+\.\d+$') {
+            throw "Versao invalida no package.json raiz: $version"
+          }
+
+          $tag = "v$version"
+          $zipName = "conciliacao-portable-$version-win-x64.zip"
+
+          git fetch --force --tags origin
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+          if (-not [string]::IsNullOrWhiteSpace($remoteTag)) {
+            throw "A tag $tag ja existe no remoto. Atualize a versao antes de publicar."
+          }
+
+          $changelogPath = Join-Path $PWD 'CHANGELOG.md'
+          $changelogLines = Get-Content $changelogPath
+          $headerPattern = "^##\s+$([regex]::Escape($version))\b"
+          $startIndex = -1
+
+          for ($index = 0; $index -lt $changelogLines.Length; $index++) {
+            if ($changelogLines[$index] -match $headerPattern) {
+              $startIndex = $index
+              break
+            }
+          }
+
+          if ($startIndex -lt 0) {
+            throw "CHANGELOG.md nao possui secao para a versao $version."
+          }
+
+          $endIndex = $changelogLines.Length
+          for ($index = $startIndex + 1; $index -lt $changelogLines.Length; $index++) {
+            if ($changelogLines[$index] -match '^##\s+') {
+              $endIndex = $index
+              break
+            }
+          }
+
+          $notes = $changelogLines[$startIndex..($endIndex - 1)] -join "`n"
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $notesPath = Join-Path $PWD 'artifacts/release-notes.md'
+          Set-Content -Path $notesPath -Value $notes
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "zip_name=$zipName" >> $env:GITHUB_OUTPUT
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      - name: Install frontend dependencies
+        run: npm ci --prefix frontend
+
+      - name: Build portable package
+        run: npm run release:portable
+
+      - name: Ensure release bundle is complete
+        shell: pwsh
+        run: |
+          $zipPath = Join-Path $PWD "artifacts/${{ steps.metadata.outputs.zip_name }}"
+          if (-not (Test-Path $zipPath)) {
+            throw "ZIP esperado nao encontrado: $zipPath"
+          }
+
+          Get-Item $zipPath | Select-Object Name, Length
+          Get-Item (Join-Path $PWD 'artifacts/release-notes.md') | Select-Object Name, Length
+
+      - name: Upload release bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-portable-${{ steps.metadata.outputs.version }}
+          path: |
+            artifacts/${{ steps.metadata.outputs.zip_name }}
+            artifacts/release-notes.md
+          if-no-files-found: error
+          retention-days: 14
+
+  publish-release:
+    name: Publish Tag And Release
+    runs-on: windows-latest
+    needs: build-portable
+    permissions:
+      contents: write
+    environment:
+      name: ${{ inputs.release_environment }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Download approved artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: release-portable-${{ needs.build-portable.outputs.version }}
+          path: artifacts
+
+      - name: Verify downloaded artifact
+        shell: pwsh
+        run: |
+          $zipPath = Join-Path $PWD "artifacts/${{ needs.build-portable.outputs.zip_name }}"
+          $notesPath = Join-Path $PWD 'artifacts/release-notes.md'
+
+          if (-not (Test-Path $zipPath)) {
+            throw "ZIP aprovado nao encontrado: $zipPath"
+          }
+
+          if (-not (Test-Path $notesPath)) {
+            throw "Release notes aprovadas nao encontradas: $notesPath"
+          }
+
+      - name: Create annotated tag
+        shell: pwsh
+        run: |
+          git fetch --force --tags origin
+          $tag = '${{ needs.build-portable.outputs.tag }}'
+          $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+
+          if (-not [string]::IsNullOrWhiteSpace($remoteTag)) {
+            throw "A tag $tag ja existe no remoto. Abortando publicacao."
+          }
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a $tag $env:GITHUB_SHA -m "Release $tag"
+          git push origin $tag
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.build-portable.outputs.tag }}
+          name: Conciliação Financeira ${{ needs.build-portable.outputs.tag }}
+          body_path: artifacts/release-notes.md
+          files: artifacts/${{ needs.build-portable.outputs.zip_name }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

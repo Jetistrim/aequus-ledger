@@ -85,10 +85,16 @@ export function ModalTesteRegras({ regraTemporariaInicial, onFechar }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-xl bg-white shadow-xl">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-teste-regras-titulo"
+        data-testid="modal-teste"
+        className="max-h-[92vh] w-full max-w-6xl overflow-hidden rounded-xl bg-white shadow-xl"
+      >
         <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-800">Teste de Regras</h2>
+            <h2 id="modal-teste-regras-titulo" className="text-xl font-bold text-gray-800">Teste de Regras</h2>
             <p className="text-sm text-gray-500">Diagnóstico assistido para ajustar palavras-chave, categoria e prioridade.</p>
           </div>
           <button onClick={onFechar} className="text-sm text-gray-500 hover:text-gray-700">Fechar</button>

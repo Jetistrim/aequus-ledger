@@ -45,6 +45,8 @@ if (!currentBranch) {
   process.exit(0);
 }
 
+const isMainBranch = currentBranch === 'main';
+
 const tag = `v${version}`;
 console.log(`► [pre-push] Validando versao ${version} contra tags remotas...`);
 
@@ -54,6 +56,12 @@ const remoteTag = runGit(`ls-remote --tags origin refs/tags/${tag}`, { allowFail
 if (!remoteTag) {
   console.log(`✔ [pre-push] Tag ${tag} ainda nao existe no remoto.`);
   process.exit(0);
+}
+
+if (isMainBranch) {
+  console.error(`✖ [pre-push] A versao ${version} ja existe como tag ${tag}. Push para main bloqueado.`);
+  console.error('   Atualize o package.json raiz para uma nova versao antes de enviar ou publicar em main.');
+  process.exit(1);
 }
 
 if (baseRevision) {

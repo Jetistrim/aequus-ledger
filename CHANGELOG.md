@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.6 - 2026-04-18
+
+### Added
+
+- workflow manual `Release Portable` para empacotar no GitHub, aguardar approval em Environment e publicar tag/release com o mesmo ZIP aprovado
+- validação local em `.husky/pre-push` para bloquear pushes com versão raiz já tagueada no remoto
+
+### Changed
+
+- documentação de empacotamento atualizada com o fluxo de release via GitHub Actions e o input `release_environment`
+- workflow de CI em `main` agora reaplica a validação de versão para cobrir pushes com `--no-verify`
+
+### Fixed
+
+- prevenção de republicação acidental da mesma versão em `main` quando a tag correspondente já existe no remoto
+
 ## 2.1.5 - 2026-03-31
 
 ### Added

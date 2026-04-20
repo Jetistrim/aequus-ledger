@@ -2,7 +2,7 @@
 
 Este documento descreve como gerar a distribuicao portatil da aplicacao:
 uma pasta ZIP auto-suficiente com Node.js embutido. O usuario descompacta
-e executa `start.bat`.
+e executa `start.vbs`.
 
 ## Visao Geral
 
@@ -41,8 +41,7 @@ Pipeline executada:
 portable/
 ├── config/
 │   ├── seed-generico.json
-│   ├── seed-estetica.json
-│   └── seed-alexia.json
+│   └── seed-estetica.json
 ├── dist/
 │   ├── portable-entrypoint.js
 │   ├── index.js
@@ -56,6 +55,7 @@ portable/
 │   └── node.exe
 ├── package.json
 ├── package-lock.json
+├── start.vbs
 ├── start.bat
 └── start.ps1
 ```
@@ -83,6 +83,28 @@ Depois de descompactar o ZIP, edite ou adicione seus arquivos `seed-*.json` em:
 O loader do backend carrega automaticamente todos os `seed-*.json` encontrados nessa pasta.
 Isso permite distribuir a mesma base e trocar regras por nicho/empresa sem alterar TypeScript.
 
+### Selecao explicita de seeds no ZIP
+
+O empacotamento portatil agora respeita a lista declarada em `config/portable-seeds.json`.
+Somente os arquivos listados em `incluir` entram no ZIP final.
+
+Exemplo:
+
+```json
+{
+	"incluir": [
+		"seed-generico.json",
+		"seed-estetica.json"
+	]
+}
+```
+
+Uso recomendado:
+
+- mantenha `seed-generico.json` como base comum
+- inclua apenas os nichos/clientes que devem sair naquele pacote
+- remova um arquivo da lista para exclui-lo do ZIP sem apagar o fonte do repositório
+
 ## Dados Em Runtime Portatil
 
 No modo portatil, os dados ficam ao lado da aplicacao:
@@ -104,6 +126,7 @@ No modo portatil, os dados ficam ao lado da aplicacao:
 - Icone de bandeja quando `systray2` estiver disponivel.
 - Fallback de porta com base em `PORT` e `PORT_FALLBACK_SPAN`.
 - Frontend servido por `dist/public` no proprio backend.
+- `start.vbs` inicia a aplicacao sem manter uma janela de terminal aberta.
 
 ## Scripts Relevantes
 
@@ -138,6 +161,7 @@ Pre-condicoes:
 ## Troubleshooting
 
 - Se o zip falhar, confirme que `portable/` existe e execute `npm run build:portable` antes.
+- Se um seed esperado nao entrar no ZIP, revise `config/portable-seeds.json`.
 - Se `better-sqlite3` falhar no alvo, gere o pacote no mesmo ambiente Windows x64.
 - Se a bandeja nao aparecer, o servidor continua funcional; abra a URL impressa no console.
 - Se o workflow falhar dizendo que a secao da versao nao existe, confira se `CHANGELOG.md` contem um cabecalho `## <versao>` exatamente igual ao `package.json` raiz.

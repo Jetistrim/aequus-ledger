@@ -30,6 +30,8 @@ const rootDir = path.resolve(__dirname, '..');
 const backendDir = path.join(rootDir, 'backend');
 const frontendDir = path.join(rootDir, 'frontend');
 const portableDir = path.join(rootDir, 'portable');
+const configDir = path.join(rootDir, 'config');
+const portableSeedsManifestPath = path.join(configDir, 'portable-seeds.json');
 
 const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm';
 
@@ -48,6 +50,56 @@ function copyDir(src, dest) {
     } else {
       fs.copyFileSync(srcPath, destPath);
     }
+  }
+}
+
+function loadPortableSeedSelection() {
+  if (!fs.existsSync(portableSeedsManifestPath)) {
+    return fs.readdirSync(configDir)
+      .filter((entry) => /^seed-.*\.json$/i.test(entry))
+      .sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' }));
+  }
+
+  const raw = fs.readFileSync(portableSeedsManifestPath, 'utf8');
+  const parsed = JSON.parse(raw);
+  const selectedSeeds = Array.isArray(parsed?.incluir) ? parsed.incluir : null;
+
+  if (!selectedSeeds || selectedSeeds.length === 0) {
+    throw new Error('config/portable-seeds.json deve conter um array "incluir" com ao menos um arquivo seed-*.json.');
+  }
+
+  const normalized = [...new Set(selectedSeeds.map((entry) => String(entry).trim()).filter(Boolean))];
+
+  for (const fileName of normalized) {
+    if (!/^seed-.*\.json$/i.test(fileName)) {
+      throw new Error(`Arquivo inválido em config/portable-seeds.json: ${fileName}. Use apenas nomes seed-*.json.`);
+    }
+
+    const sourcePath = path.join(configDir, fileName);
+    if (!fs.existsSync(sourcePath)) {
+      throw new Error(`Arquivo listado em config/portable-seeds.json não encontrado: ${fileName}`);
+    }
+  }
+
+  return normalized;
+}
+
+function copyPortableSeedConfig(destDir) {
+  if (!fs.existsSync(configDir)) {
+    return;
+  }
+
+  const selectedSeeds = loadPortableSeedSelection();
+
+  console.log(`\n=== Copiando config de seeds (${selectedSeeds.length} selecionado(s)) ===`);
+  fs.mkdirSync(destDir, { recursive: true });
+
+  for (const fileName of selectedSeeds) {
+    fs.copyFileSync(path.join(configDir, fileName), path.join(destDir, fileName));
+  }
+
+  if (fs.existsSync(portableSeedsManifestPath)) {
+    fs.copyFileSync(portableSeedsManifestPath, path.join(destDir, 'portable-seeds.json'));
   }
 }
 
@@ -79,10 +131,8 @@ console.log('\n=== Copiando prisma ===');
 copyDir(path.join(backendDir, 'prisma'), path.join(portableDir, 'prisma'));
 
 // ─── 5.1. Copiar configuração de seed JSON ────────────────────────────────────
-const configDir = path.join(rootDir, 'config');
 if (fs.existsSync(configDir)) {
-  console.log('\n=== Copiando config de seeds ===');
-  copyDir(configDir, path.join(portableDir, 'config'));
+  copyPortableSeedConfig(path.join(portableDir, 'config'));
 }
 
 // ─── 5.2. Copiar prisma.config.ts (Prisma 7) ──────────────────────────────────
@@ -149,9 +199,18 @@ Write-Host 'Iniciando Conciliacao Financeira...'
 & ".\\runtime\\node.exe" "dist\\portable-entrypoint.js"
 `;
 
+const startVbs = `Set shell = CreateObject("WScript.Shell")
+Set fso = CreateObject("Scripting.FileSystemObject")
+appDir = fso.GetParentFolderName(WScript.ScriptFullName)
+shell.CurrentDirectory = appDir
+command = Chr(34) & appDir & "\\runtime\\node.exe" & Chr(34) & " " & Chr(34) & appDir & "\\dist\\portable-entrypoint.js" & Chr(34)
+shell.Run command, 0, False
+`;
+
 fs.writeFileSync(path.join(portableDir, 'start.bat'), startBat, 'utf8');
 fs.writeFileSync(path.join(portableDir, 'start.ps1'), startPs1, 'utf8');
-console.log('  start.bat e start.ps1 criados.');
+fs.writeFileSync(path.join(portableDir, 'start.vbs'), startVbs, 'utf8');
+console.log('  start.bat, start.ps1 e start.vbs criados.');
 
 console.log(`\n✓ Pasta portátil pronta em: ${portableDir}`);
 console.log('  Execute "npm run zip:portable" para gerar o ZIP de distribuição.\n');

@@ -54,7 +54,8 @@ As regras de classificação são carregadas automaticamente a partir de arquivo
 
 - Local no repositório: `config/`
 - Local após descompactar o pacote portátil: `config/` na raiz da pasta descompactada
-- Exemplo de arquivos: `seed-generico.json`, `seed-estetica.json`, `seed-alexia.json`
+- Exemplo de arquivos: `seed-generico.json`, `seed-estetica.json`
+- O pacote portátil inclui apenas os arquivos listados explicitamente em `config/portable-seeds.json`
 
 Formato esperado:
 

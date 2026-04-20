@@ -1,0 +1,7 @@
+{
+  "descricao": "Lista explicita de arquivos seed-*.json que entram no pacote portatil.",
+  "incluir": [
+    "seed-generico.json",
+    "seed-estetica.json"
+  ]
+}

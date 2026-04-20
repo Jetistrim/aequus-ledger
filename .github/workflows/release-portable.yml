@@ -1,6 +1,11 @@
 name: Release Portable
 
 on:
+  workflow_run:
+    workflows:
+      - Security Scan
+    types:
+      - completed
   workflow_dispatch:
     inputs:
       release_environment:
@@ -19,6 +24,7 @@ concurrency:
 jobs:
   build-portable:
     name: Build Portable Artifact
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
     runs-on: windows-latest
     permissions:
       contents: read
@@ -32,6 +38,7 @@ jobs:
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -140,13 +147,14 @@ jobs:
     permissions:
       contents: write
     environment:
-      name: ${{ inputs.release_environment }}
+      name: ${{ github.event.inputs.release_environment || 'release' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
       - name: Download approved artifact
         uses: actions/download-artifact@v4

@@ -33,7 +33,7 @@ Pipeline executada:
 | Node.js | 20 LTS | Copiado para `portable/runtime/node.exe` |
 | npm | 10+ | Usado no build e no `npm ci` dentro de `portable/` |
 | better-sqlite3 | incluso | Modulo nativo, build no mesmo OS/arch de destino |
-| PowerShell | 5.1+ | Usado por `Compress-Archive` no script de zip |
+| PowerShell | 5.1+ | Usado com `.NET ZipArchive` no script de zip |
 
 ## Estrutura do Diretorio Portable
 
@@ -144,7 +144,7 @@ Fluxo:
 
 1. Roda manualmente via `workflow_dispatch`.
 2. Recebe o input `release_environment`, com valor padrao `release`, para definir em qual GitHub Environment o job de publicacao deve aguardar approval.
-3. Executa em `windows-latest` para manter compatibilidade com `better-sqlite3`, `node.exe` e `Compress-Archive`.
+3. Executa em `windows-latest` para manter compatibilidade com `better-sqlite3`, `node.exe` e o empacotamento ZIP via PowerShell.
 4. Valida a versao do `package.json` raiz, exige formato semver e falha se a tag `v<versao>` ja existir.
 5. Extrai o corpo da release da secao correspondente em `CHANGELOG.md`.
 6. Executa `npm run release:portable` e publica o ZIP como artifact.

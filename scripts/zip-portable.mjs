@@ -6,7 +6,8 @@
  *
  * Saída: artifacts/conciliacao-portable-<versão>-win-x64.zip
  *
- * Usa PowerShell Compress-Archive (disponível no Windows 10+ sem dependências extras).
+ * Usa PowerShell + .NET ZipFile.CreateFromDirectory para evitar falhas do
+ * Compress-Archive com árvores grandes de dependências no Windows.
  */
 
 import { execSync } from 'node:child_process';
@@ -33,29 +34,52 @@ fs.mkdirSync(artifactsDir, { recursive: true });
 const zipName = `conciliacao-portable-${version}-win-x64.zip`;
 const zipPath = path.join(artifactsDir, zipName);
 
-// Remove ZIP anterior com o mesmo nome, se existir.
-if (fs.existsSync(zipPath)) {
-  fs.rmSync(zipPath);
+function resolveWritableZipPath(preferredPath) {
+  if (!fs.existsSync(preferredPath)) {
+    return preferredPath;
+  }
+
+  try {
+    fs.rmSync(preferredPath);
+    return preferredPath;
+  } catch (error) {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined;
+    if (code !== 'EBUSY' && code !== 'EPERM') {
+      throw error;
+    }
+
+    const parsed = path.parse(preferredPath);
+    const fallbackName = `${parsed.name}-locked-${Date.now()}${parsed.ext}`;
+    const fallbackPath = path.join(parsed.dir, fallbackName);
+    console.warn(`ZIP de destino bloqueado em ${preferredPath}. Gerando artefato alternativo em ${fallbackPath}.`);
+    return fallbackPath;
+  }
 }
 
-console.log(`\n=== Compactando portable/ → artifacts/${zipName} ===`);
+const outputZipPath = resolveWritableZipPath(zipPath);
+const outputZipName = path.basename(outputZipPath);
+
+console.log(`\n=== Compactando portable/ → artifacts/${outputZipName} ===`);
 
 if (process.platform !== 'win32') {
-  console.error('Este script usa PowerShell Compress-Archive e só funciona no Windows.');
+  console.error('Este script usa PowerShell + .NET ZipFile e só funciona no Windows.');
   console.error('Para gerar o ZIP em outro SO, use uma ferramenta como "zip" ou "7z".');
   process.exit(1);
 }
 
-// PowerShell Compress-Archive: compacta o conteúdo de portable/ diretamente
-// (sem criar uma pasta-pai adicional dentro do ZIP).
+// Usa ZipFile.CreateFromDirectory para empacotar o conteúdo de portable/
+// diretamente, sem depender do Compress-Archive.
 const psCommand = [
-  `$src = Get-ChildItem -Path '${portableDir}' | Select-Object -ExpandProperty FullName`,
-  `Compress-Archive -Path $src -DestinationPath '${zipPath}' -CompressionLevel Optimal`,
+  `Add-Type -AssemblyName System.IO.Compression; Add-Type -AssemblyName System.IO.Compression.FileSystem`,
+  `$sourceRoot = [System.IO.Path]::GetFullPath('${portableDir}')`,
+  `$destinationPath = [System.IO.Path]::GetFullPath('${outputZipPath}')`,
+  `if (Test-Path $destinationPath) { Remove-Item -LiteralPath $destinationPath -Force }`,
+  `[System.IO.Compression.ZipFile]::CreateFromDirectory($sourceRoot, $destinationPath)`,
 ].join('; ');
 
 execSync(`powershell -NoProfile -Command "${psCommand}"`, { stdio: 'inherit' });
 
-const stats = fs.statSync(zipPath);
+const stats = fs.statSync(outputZipPath);
 const sizeMb = (stats.size / 1024 / 1024).toFixed(1);
 
-console.log(`\n✓ ZIP gerado: artifacts/${zipName} (${sizeMb} MB)\n`);
+console.log(`\n✓ ZIP gerado: artifacts/${outputZipName} (${sizeMb} MB)\n`);

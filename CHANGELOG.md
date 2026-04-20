@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.1.8 - 2026-04-20
+
+### Fixed
+
+- geração do ZIP portátil via `.NET ZipArchive`, eliminando falhas intermitentes do `Compress-Archive` em Windows com árvores grandes de arquivos
+
+### Changed
+
+- atualização do fluxo de release portátil para refletir o empacotamento estável do novo launcher `start.vbs`
+
 ## 2.1.7 - 2026-04-20
 
 ### Added

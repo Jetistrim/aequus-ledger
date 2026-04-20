@@ -1,5 +1,21 @@
 # Changelog
 
+## 2.1.7 - 2026-04-20
+
+### Added
+
+- launcher `start.vbs` no pacote portátil para iniciar a aplicação sem manter terminal visível
+- manifesto `config/portable-seeds.json` para controlar explicitamente quais seeds entram no ZIP
+
+### Changed
+
+- empacotamento portátil passa a excluir seeds não listadas no manifesto
+- documentação atualizada para refletir o launcher oculto e a seleção explícita de seeds
+
+### Security
+
+- remoção de seed privada do rastreamento do repositório, mantendo uso apenas local
+
 ## 2.1.6 - 2026-04-18
 
 ### Added

@@ -192,6 +192,19 @@ export async function deletarRegra(id: number): Promise<void> {
   await api.delete(`/regras/${id}`);
 }
 
+export async function desligarSistema(): Promise<void> {
+  await api.post('/shutdown');
+}
+
+export async function backendEstaOnline(): Promise<boolean> {
+  try {
+    await api.get('/health');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Executa simulacao de classificacao para apoiar o ajuste fino de regras.
  */

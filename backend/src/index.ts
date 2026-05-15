@@ -10,6 +10,7 @@ import uploadRoutes from './routes/uploadRoutes';
 import transacoesRoutes from './routes/transacoesRoutes';
 import regrasRoutes from './routes/regrasRoutes';
 import exportRoutes from './routes/exportRoutes';
+import shutdownRoutes from './routes/shutdownRoutes';
 import { exigirAutenticacao } from './middlewares/authMiddleware';
 import { errorHandler } from './middlewares/errorHandler';
 import { prisma } from './lib/prisma';
@@ -26,6 +27,7 @@ import {
   type RuntimePaths,
 } from './runtime/runtimePaths';
 import { mountStaticAssets, mountSpaFallback } from './runtime/staticServer';
+import { registerShutdownHandler, clearShutdownHandler } from './services/shutdownService';
 import { openBrowserToUrl } from './runtime/browserLauncher';
 import { startTray } from './runtime/trayManager';
 
@@ -44,6 +46,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/transacoes', transacoesRoutes);
 app.use('/api/regras', regrasRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/shutdown', exigirAutenticacao, shutdownRoutes);
 
 // SPA fallback after API routes so /api/* is never intercepted.
 mountSpaFallback(app);
@@ -96,6 +99,7 @@ async function startServer(): Promise<void> {
       }
 
       shutdownStarted = true;
+      clearShutdownHandler();
 
       try {
         await closeServer(server);
@@ -114,6 +118,8 @@ async function startServer(): Promise<void> {
 
       process.exit(0);
     };
+
+    registerShutdownHandler(async () => shutdown());
 
     process.on('SIGINT', () => {
       void shutdown('SIGINT');

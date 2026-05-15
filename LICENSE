@@ -1,25 +1,21 @@
-Licenca Proprietaria - Todos os direitos reservados
+MIT License
 
-Copyright (c) 2026 Paulo - Todos os direitos reservados.
+Copyright (c) 2026 Paulo Gabriel Lima de Sousa
 
-O presente software ("Conciliação Financeira") e de propriedade exclusiva de Paulo
-ou de sua empresa (CNPJ XXX.XXX.XXX/XXXX-XX).
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-E concedida ao adquirente uma licenca nao exclusiva, intransferivel e limitada de uso,
-apenas para fins internos da sua empresa, em uma unica maquina/instalacao.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-E expressamente proibido:
-- Copiar, modificar, adaptar, traduzir, fazer engenharia reversa, descompilar ou criar obras derivadas;
-- Redistribuir, sublicenciar, alugar, vender ou ceder a terceiros (mesmo que parcialmente);
-- Remover ou alterar qualquer aviso de copyright ou marca;
-- Utilizar em mais de uma empresa ou compartilhar entre diferentes pessoas juridicas sem autorizacao por escrito.
-
-Qualquer violacao sujeitara o infrator as penalidades previstas na Lei 9.609/98
-(Lei do Software) e na Lei 9.610/98 (Direitos Autorais), sem prejuizo de
-indenizacao por perdas e danos.
-
-Este arquivo faz parte da documentacao do software e deve acompanhar todas as
-copias distribuidas.
-
-Versao atual: 1.0
-Data: 24 de marco de 2026
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

@@ -1,5 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { PainelRegras } from '../components/PainelRegras';
+import { BotaoDesligarSistema } from '../components/BotaoDesligarSistema';
 import { BotaoLogout } from '../components/BotaoLogout';
 
 /**
@@ -41,6 +42,7 @@ export function RegrasPage() {
             >
               ← Voltar à Conciliação
             </a>
+            <BotaoDesligarSistema />
             <BotaoLogout />
           </div>
         </div>

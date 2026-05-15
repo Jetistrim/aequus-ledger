@@ -107,6 +107,19 @@ export async function logoutSistema(): Promise<void> {
   await api.post('/auth/logout');
 }
 
+export async function desligarSistema(): Promise<void> {
+  await api.post('/shutdown');
+}
+
+export async function backendEstaOnline(): Promise<boolean> {
+  try {
+    const { status } = await api.get('/health');
+    return status >= 200 && status < 300;
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadArquivo(file: File): Promise<RespostaUpload> {
   return uploadArquivos([file]);
 }
@@ -190,19 +203,6 @@ export async function atualizarRegra(
 
 export async function deletarRegra(id: number): Promise<void> {
   await api.delete(`/regras/${id}`);
-}
-
-export async function desligarSistema(): Promise<void> {
-  await api.post('/shutdown');
-}
-
-export async function backendEstaOnline(): Promise<boolean> {
-  try {
-    await api.get('/health');
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /**

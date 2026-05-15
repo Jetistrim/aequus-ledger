@@ -27,6 +27,13 @@ process.env['PORTABLE_RUNTIME'] = 'true';
 import 'dotenv/config';
 import path from 'path';
 import { spawnSync } from 'child_process';
+import { openBrowserToUrl } from './runtime/browserLauncher';
+import {
+  acquireInstanceLock,
+  consumeBootstrapInstanceLock,
+  readActiveInstanceMetadata,
+  reserveBootstrapInstanceLock,
+} from './runtime/instanceMetadata';
 import { applyRuntimeEnvironment, ensureRuntimeDirectories } from './runtime/runtimePaths';
 
 const runtimePaths = applyRuntimeEnvironment();
@@ -62,32 +69,63 @@ function runStep(label: string, args: string[], env?: NodeJS.ProcessEnv): void {
   console.log(`[setup] Concluído: ${label} (${elapsedMs}ms)`);
 }
 
-// 1. Aplicar migrações do SQLite no diretório de dados da pasta portátil.
-//    O schema.prisma está na raiz da pasta; o DATABASE_URL já foi normalizado
-//    para o caminho persistente dentro de data/.
-const prismaScript = path.join(packageRoot, 'node_modules', 'prisma', 'build', 'index.js');
-const schemaPath = path.join(packageRoot, 'prisma', 'schema.prisma');
+async function guardPortableInstance(): Promise<void> {
+  const lockAcquisition = await acquireInstanceLock(runtimePaths);
 
-runStep('prisma migrate deploy', [
-  prismaScript,
-  'migrate',
-  'deploy',
-  '--schema',
-  schemaPath,
-], {
-  DATABASE_URL: runtimePaths.databaseUrl,
+  if (lockAcquisition.acquired) {
+    reserveBootstrapInstanceLock(lockAcquisition.release);
+    return;
+  }
+
+  const metadata = lockAcquisition.metadata || await readActiveInstanceMetadata(runtimePaths);
+
+  if (metadata?.url) {
+    console.log(`Instância já está em execução em ${metadata.url}.`);
+    openBrowserToUrl(metadata.url);
+  } else {
+    console.log('Instância já está em execução.');
+  }
+
+  process.exit(0);
+}
+
+void main().catch(async (error) => {
+  const release = consumeBootstrapInstanceLock();
+  await release?.();
+  console.error((error as Error).message);
+  process.exit(1);
 });
 
-// 2. Semear regras iniciais em todo startup.
-//    O seed é idempotente por design (upsert), então não cria duplicatas.
-const seedScript = path.join(packageRoot, 'dist', 'seed.js');
-runStep('prisma seed', [seedScript], {
-  DATABASE_URL: runtimePaths.databaseUrl,
-});
+async function main(): Promise<void> {
+  await guardPortableInstance();
 
-// 3. Iniciar o servidor; a partir daqui o fluxo continua em index.ts.
-//    Como o modo portátil já foi sinalizado via PORTABLE_RUNTIME=true e o cache
-//    de runtimePaths já está preenchido, o servidor usará os mesmos caminhos.
-console.log('[setup] Iniciando bootstrap do servidor...');
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-require('./index');
+  // 1. Aplicar migrações do SQLite no diretório de dados da pasta portátil.
+  //    O schema.prisma está na raiz da pasta; o DATABASE_URL já foi normalizado
+  //    para o caminho persistente dentro de data/.
+  const prismaScript = path.join(packageRoot, 'node_modules', 'prisma', 'build', 'index.js');
+  const schemaPath = path.join(packageRoot, 'prisma', 'schema.prisma');
+
+  runStep('prisma migrate deploy', [
+    prismaScript,
+    'migrate',
+    'deploy',
+    '--schema',
+    schemaPath,
+  ], {
+    DATABASE_URL: runtimePaths.databaseUrl,
+  });
+
+  // 2. Semear regras iniciais em todo startup.
+  //    O seed é idempotente por design (upsert), então não cria duplicatas.
+  const seedScript = path.join(packageRoot, 'dist', 'seed.js');
+  runStep('prisma seed', [seedScript], {
+    DATABASE_URL: runtimePaths.databaseUrl,
+  });
+
+  // 3. Iniciar o servidor; a partir daqui o fluxo continua em index.ts.
+  //    Como o modo portátil já foi sinalizado via PORTABLE_RUNTIME=true e o cache
+  //    de runtimePaths já está preenchido, o servidor usará os mesmos caminhos.
+  console.log('[setup] Iniciando bootstrap do servidor...');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('./index');
+}

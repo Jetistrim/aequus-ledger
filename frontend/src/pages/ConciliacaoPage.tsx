@@ -4,6 +4,7 @@ import { TotalizadoresBar } from '../components/TotalizadoresBar';
 import { FiltroRapido } from '../components/FiltroRapido';
 import { TabelaConciliacao } from '../components/TabelaConciliacao';
 import { BotaoGerarExtratos } from '../components/BotaoGerarExtratos';
+import { BotaoDesligarSistema } from '../components/BotaoDesligarSistema';
 import { BotaoLogout } from '../components/BotaoLogout';
 import { useTransacoes } from '../hooks/useTransacoes';
 import { parseUrlFiltros, serializarFiltros } from '../utils/queryParamUtils';
@@ -230,16 +231,6 @@ export function ConciliacaoPage() {
   }, [paginaAtual, itensPorPagina, filtro, filtroClassificacao, filtroTipo, busca, carregar]);
 
   useEffect(() => {
-    if (paginacao.totalRegistros === 0 && transacoes.length === 0) {
-      return;
-    }
-
-    if (paginacao.paginaAtual !== paginaAtual) {
-      setPaginaAtual(paginacao.paginaAtual);
-    }
-  }, [paginacao.paginaAtual, paginacao.totalRegistros, paginaAtual, transacoes.length]);
-
-  useEffect(() => {
     if (!mostrandoFallbackInicial) {
       return;
     }
@@ -251,10 +242,11 @@ export function ConciliacaoPage() {
     return () => clearTimeout(timeoutId);
   }, [mostrandoFallbackInicial, carregar, itensPorPagina]);
 
+  const totalPaginasLocal = Math.ceil(paginacao.totalRegistros / itensPorPagina) || 1;
   const indiceInicio = paginacao.totalRegistros === 0
     ? 0
-    : (paginacao.paginaAtual - 1) * paginacao.limite + 1;
-  const indiceFim = Math.min(paginacao.paginaAtual * paginacao.limite, paginacao.totalRegistros);
+    : (paginaAtual - 1) * itensPorPagina + 1;
+  const indiceFim = Math.min(paginaAtual * itensPorPagina, paginacao.totalRegistros);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -282,6 +274,7 @@ export function ConciliacaoPage() {
             >
               ⚙️ Gerenciar Regras
             </a>
+            <BotaoDesligarSistema />
             <BotaoLogout />
           </div>
         </div>
@@ -473,17 +466,17 @@ export function ConciliacaoPage() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setPaginaAtual((p) => Math.max(1, p - 1))}
-                  disabled={paginacao.paginaAtual === 1}
+                  disabled={paginaAtual === 1}
                   className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Anterior
                 </button>
                 <span className="text-sm text-gray-700">
-                  Página <strong>{paginacao.paginaAtual}</strong> de <strong>{paginacao.totalPaginas}</strong>
+                  Página <strong>{paginaAtual}</strong> de <strong>{totalPaginasLocal}</strong>
                 </span>
                 <button
-                  onClick={() => setPaginaAtual((p) => Math.min(paginacao.totalPaginas, p + 1))}
-                  disabled={paginacao.paginaAtual === paginacao.totalPaginas}
+                  onClick={() => setPaginaAtual((p) => Math.min(totalPaginasLocal, p + 1))}
+                  disabled={paginaAtual === totalPaginasLocal}
                   className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Próxima

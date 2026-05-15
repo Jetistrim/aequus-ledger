@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { UploadZone } from '../components/UploadZone';
 import { RevisaoArquivos } from '../components/RevisaoArquivos';
+import { BotaoDesligarSistema } from '../components/BotaoDesligarSistema';
 import { BotaoLogout } from '../components/BotaoLogout';
 import { RespostaUpload } from '../types';
 
@@ -90,6 +91,7 @@ export function HomePage() {
             >
               ⚙️ Gerenciar Regras
             </a>
+            <BotaoDesligarSistema />
             <BotaoLogout />
           </div>
         </div>

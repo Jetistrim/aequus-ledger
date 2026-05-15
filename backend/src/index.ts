@@ -17,7 +17,9 @@ import { prisma } from './lib/prisma';
 import {
   acquireInstanceLock,
   clearActiveInstanceMetadata,
+  consumeBootstrapInstanceLock,
   type ActiveInstanceMetadata,
+  isInstanceAlive,
   readActiveInstanceMetadata,
   writeActiveInstanceMetadata,
 } from './runtime/instanceMetadata';
@@ -29,7 +31,6 @@ import {
 import { mountStaticAssets, mountSpaFallback } from './runtime/staticServer';
 import { registerShutdownHandler, clearShutdownHandler } from './services/shutdownService';
 import { openBrowserToUrl } from './runtime/browserLauncher';
-import { startTray } from './runtime/trayManager';
 
 const runtimePaths = applyRuntimeEnvironment();
 ensureRuntimeDirectories(runtimePaths);
@@ -55,6 +56,12 @@ app.use(errorHandler);
 
 const server = http.createServer(app);
 
+class ExistingInstanceDetectedError extends Error {
+  constructor() {
+    super('Instância ativa detectada durante startup.');
+  }
+}
+
 void startServer().catch((error) => {
   console.error(error.message);
   process.exit(1);
@@ -64,7 +71,10 @@ void startServer().catch((error) => {
  * Inicializa o servidor HTTP com lock de instância e fallback automático de porta.
  */
 async function startServer(): Promise<void> {
-  const lockAcquisition = await acquireInstanceLock(runtimePaths);
+  const reservedRelease = consumeBootstrapInstanceLock();
+  const lockAcquisition = reservedRelease
+    ? { acquired: true, metadata: null, release: reservedRelease }
+    : await acquireInstanceLock(runtimePaths);
 
   if (!lockAcquisition.acquired) {
     await handleExistingInstance(lockAcquisition.metadata);
@@ -77,6 +87,38 @@ async function startServer(): Promise<void> {
   }
 
   let shutdownStarted = false;
+  let releaseLockFn: (() => Promise<void>) | null = releaseLock;
+
+  const shutdown = async (signal?: NodeJS.Signals) => {
+    if (shutdownStarted) {
+      return;
+    }
+
+    shutdownStarted = true;
+
+    try {
+      await closeServer(server);
+      await prisma.$disconnect();
+    } catch (error) {
+      console.error((error as Error).message);
+    } finally {
+      clearShutdownHandler();
+      await clearActiveInstanceMetadata(runtimePaths);
+      if (releaseLockFn) {
+        await releaseLockFn();
+        releaseLockFn = null;
+      }
+    }
+
+    if (signal === 'SIGUSR2') {
+      process.kill(process.pid, signal);
+      return;
+    }
+
+    process.exit(0);
+  };
+
+  registerShutdownHandler(() => shutdown('SIGTERM'));
 
   try {
     const resolvedPort = await listenWithFallback(server, runtimePaths);
@@ -87,39 +129,7 @@ async function startServer(): Promise<void> {
 
     if (runtimePaths.mode === 'packaged' || runtimePaths.mode === 'portable') {
       openBrowserToUrl(instanceMetadata.url);
-      startTray({
-        url: instanceMetadata.url,
-        onShutdown: () => { void shutdown('SIGTERM'); },
-      });
     }
-
-    const shutdown = async (signal?: NodeJS.Signals) => {
-      if (shutdownStarted) {
-        return;
-      }
-
-      shutdownStarted = true;
-      clearShutdownHandler();
-
-      try {
-        await closeServer(server);
-        await prisma.$disconnect();
-      } catch (error) {
-        console.error((error as Error).message);
-      } finally {
-        await clearActiveInstanceMetadata(runtimePaths);
-        await releaseLock();
-      }
-
-      if (signal === 'SIGUSR2') {
-        process.kill(process.pid, signal);
-        return;
-      }
-
-      process.exit(0);
-    };
-
-    registerShutdownHandler(async () => shutdown());
 
     process.on('SIGINT', () => {
       void shutdown('SIGINT');
@@ -131,8 +141,21 @@ async function startServer(): Promise<void> {
       void shutdown('SIGUSR2');
     });
   } catch (error) {
+    clearShutdownHandler();
+    if (error instanceof ExistingInstanceDetectedError) {
+      if (releaseLockFn) {
+        await releaseLockFn();
+        releaseLockFn = null;
+      }
+      process.exit(0);
+      return;
+    }
+
     await clearActiveInstanceMetadata(runtimePaths);
-    await releaseLock();
+    if (releaseLockFn) {
+      await releaseLockFn();
+      releaseLockFn = null;
+    }
     throw error;
   }
 }
@@ -166,14 +189,18 @@ async function listenWithFallback(serverInstance: http.Server, paths: RuntimePat
         console.warn(`Porta ${preferredPort} indisponível. Runtime ativo em ${buildInstanceMetadata(port, paths).url}.`);
       }
       return port;
-     } catch (error) {
-       const errorCode = (error as NodeJS.ErrnoException).code;
-       if (errorCode !== 'EADDRINUSE') {
-         throw error;
-       }
+    } catch (error) {
+      const errorCode = (error as NodeJS.ErrnoException).code;
+      if (errorCode !== 'EADDRINUSE') {
+        throw error;
+      }
 
-       lastError = error as Error;
-     }
+      if (candidate === preferredPort && await handlePortConflictWithExistingInstance(paths)) {
+        throw new ExistingInstanceDetectedError();
+      }
+
+      lastError = error as Error;
+    }
    }
 
    throw lastError || new Error('Não foi possível encontrar uma porta livre para iniciar o servidor.');
@@ -201,6 +228,26 @@ function attemptListen(serverInstance: http.Server, port: number, host: string):
     serverInstance.once('listening', handleListening);
     serverInstance.listen(port, host);
   });
+}
+
+async function handlePortConflictWithExistingInstance(paths: RuntimePaths): Promise<boolean> {
+  if (paths.mode !== 'packaged' && paths.mode !== 'portable') {
+    return false;
+  }
+
+  const metadata = await readActiveInstanceMetadata(paths);
+  if (!metadata?.url) {
+    return false;
+  }
+
+  const alive = await isInstanceAlive(metadata);
+  if (!alive) {
+    return false;
+  }
+
+  console.log(`Instância já está em execução em ${metadata.url}.`);
+  openBrowserToUrl(metadata.url);
+  return true;
 }
 
 function buildInstanceMetadata(port: number, paths: RuntimePaths): ActiveInstanceMetadata {

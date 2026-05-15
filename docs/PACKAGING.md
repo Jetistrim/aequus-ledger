@@ -123,9 +123,10 @@ No modo portatil, os dados ficam ao lado da aplicacao:
 
 - Instancia unica via lock file.
 - Abertura automatica do navegador ao iniciar.
-- Icone de bandeja quando `systray2` estiver disponivel.
+- Segundo clique no atalho abre a instância ja ativa (atalho idempotente).
 - Fallback de porta com base em `PORT` e `PORT_FALLBACK_SPAN`.
 - Frontend servido por `dist/public` no proprio backend.
+- Encerramento via botao `Desligar Sistema` na interface web.
 - `start.vbs` inicia a aplicacao sem manter uma janela de terminal aberta.
 
 ## Scripts Relevantes
@@ -163,7 +164,7 @@ Pre-condicoes:
 - Se o zip falhar, confirme que `portable/` existe e execute `npm run build:portable` antes.
 - Se um seed esperado nao entrar no ZIP, revise `config/portable-seeds.json`.
 - Se `better-sqlite3` falhar no alvo, gere o pacote no mesmo ambiente Windows x64.
-- Se a bandeja nao aparecer, o servidor continua funcional; abra a URL impressa no console.
+- Se o navegador nao abrir automaticamente, abra manualmente a URL salva em `active-instance.json`.
 - Se o workflow falhar dizendo que a secao da versao nao existe, confira se `CHANGELOG.md` contem um cabecalho `## <versao>` exatamente igual ao `package.json` raiz.
 - Se o job de publicacao nao pausar para aprovacao, confirme a configuracao do GitHub Environment informado em `release_environment`.
 - Se o `git push` for bloqueado por versao duplicada, incremente o campo `version` no `package.json` raiz antes de enviar a branch.

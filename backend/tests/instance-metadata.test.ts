@@ -62,4 +62,30 @@ describe('instance metadata', () => {
 
     expect(fs.existsSync(runtimePaths.lockFile)).toBe(false);
   });
+
+  it('permite reservar e consumir o lock adquirido no bootstrap', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'conciliacao-bootstrap-lock-'));
+    process.env.APP_RUNTIME_MODE = 'packaged';
+    process.env.APP_DATA_DIR = tempDir;
+
+    const runtimeModule = await import('../src/runtime/runtimePaths');
+    const instanceModule = await import('../src/runtime/instanceMetadata');
+    runtimeModule.resetRuntimePathsForTests();
+
+    const runtimePaths = runtimeModule.resolveRuntimePaths();
+    const acquisition = await instanceModule.acquireInstanceLock(runtimePaths);
+
+    expect(acquisition.acquired).toBe(true);
+    expect(typeof acquisition.release).toBe('function');
+
+    instanceModule.reserveBootstrapInstanceLock(acquisition.release);
+
+    const reservedRelease = instanceModule.consumeBootstrapInstanceLock();
+    expect(typeof reservedRelease).toBe('function');
+    expect(instanceModule.consumeBootstrapInstanceLock()).toBeNull();
+
+    await reservedRelease?.();
+
+    expect(fs.existsSync(runtimePaths.lockFile)).toBe(false);
+  });
 });

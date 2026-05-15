@@ -6,6 +6,8 @@ const INSTANCE_METADATA_VERSION = 1;
 const STARTUP_GRACE_PERIOD_MS = 30_000;
 const HEALTHCHECK_TIMEOUT_MS = 1_500;
 
+let reservedBootstrapLockRelease: (() => Promise<void>) | null = null;
+
 export interface ActiveInstanceMetadata {
   version: number;
   pid: number;
@@ -22,6 +24,22 @@ export interface InstanceLockAcquisition {
   acquired: boolean;
   metadata: ActiveInstanceMetadata | null;
   release?: () => Promise<void>;
+}
+
+/**
+ * Reserva o lock adquirido durante o bootstrap para ser reutilizado no start do servidor.
+ */
+export function reserveBootstrapInstanceLock(release: (() => Promise<void>) | undefined): void {
+  reservedBootstrapLockRelease = release ?? null;
+}
+
+/**
+ * Consome o lock previamente reservado pelo bootstrap, quando existir.
+ */
+export function consumeBootstrapInstanceLock(): (() => Promise<void>) | null {
+  const release = reservedBootstrapLockRelease;
+  reservedBootstrapLockRelease = null;
+  return release;
 }
 
 /**

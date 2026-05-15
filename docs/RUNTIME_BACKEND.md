@@ -81,6 +81,31 @@ Comportamento atual:
 
 Isso prepara o fluxo de instância única do executável, mesmo antes da parte de bandeja do sistema estar concluída.
 
+### Atalho Inteligente (Instância Já Aberta)
+
+No runtime portátil/empacotado, ao clicar no atalho com o sistema já em execução:
+
+1. o backend detecta lock/metadados ativos,
+2. abre o navegador na URL da instância existente,
+3. encerra o novo processo de bootstrap com código 0.
+
+Quando a porta preferida retorna `EADDRINUSE`, o bootstrap também tenta usar os metadados
+da instância ativa para abrir a URL existente antes de seguir com fallback de portas.
+
+Esse comportamento evita duplicar processos em segundo plano e mantém o atalho idempotente.
+
+## Desligamento Via API
+
+Existe um endpoint protegido para desligamento remoto controlado pela UI:
+
+- `POST /api/shutdown`
+
+Regras:
+
+1. disponível apenas em runtime `portable` e `packaged`,
+2. em `local`/`docker` retorna bloqueio explícito,
+3. retorna `202` e agenda desligamento gracioso (fecha HTTP server, desconecta Prisma, limpa metadata/lock e encerra processo).
+
 ## Fluxo Dev Pela Raiz
 
 O comando `npm run dev` na raiz agora usa `scripts/start-frontend-dev.mjs`.
